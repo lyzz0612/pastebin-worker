@@ -1,6 +1,6 @@
 import { verifyAuth } from "../pages/auth.js"
 import { decode, genRandStr, WorkerError } from "../common.js"
-import { createPaste, getPasteMetadata, pasteNameAvailable, updatePaste } from "../storage/storage.js"
+import { createPaste, getPasteMetadata, pasteNameAvailable, updatePaste, isR2Available } from "../storage/storage.js"
 import {
   DEFAULT_PASSWD_LEN,
   NAME_REGEX,
@@ -76,16 +76,26 @@ export async function handlePostOrPut(
   const url = new URL(request.url)
 
   let isMPUComplete = false
-  if (url.pathname === "/mpu/create" && !isPut) {
-    return handleMPUCreate(request, env)
-  } else if (url.pathname === "/mpu/create-update" && !isPut) {
-    return handleMPUCreateUpdate(request, env)
-  } else if (url.pathname === "/mpu/resume" && isPut) {
-    return handleMPUResume(request, env)
-  } else if (url.pathname === "/mpu/complete") {
-    isMPUComplete = true // we will handle mpu complete later since it is uploaded with formdata
-  } else if (url.pathname.startsWith("/mpu/")) {
-    throw new WorkerError(400, "illegal mpu operation")
+  // MPU (Multipart Upload) requires R2
+  if (url.pathname.startsWith("/mpu/")) {
+    if (!isR2Available(env)) {
+      throw new WorkerError(
+        400,
+        "Multipart upload requires R2 storage, but R2 is not configured. Please use regular upload for files smaller than " +
+          env.R2_THRESHOLD,
+      )
+    }
+    if (url.pathname === "/mpu/create" && !isPut) {
+      return handleMPUCreate(request, env)
+    } else if (url.pathname === "/mpu/create-update" && !isPut) {
+      return handleMPUCreateUpdate(request, env)
+    } else if (url.pathname === "/mpu/resume" && isPut) {
+      return handleMPUResume(request, env)
+    } else if (url.pathname === "/mpu/complete") {
+      isMPUComplete = true // we will handle mpu complete later since it is uploaded with formdata
+    } else {
+      throw new WorkerError(400, "illegal mpu operation")
+    }
   }
 
   const contentType = request.headers.get("Content-Type") || ""
@@ -95,7 +105,9 @@ export async function handlePostOrPut(
     throw new WorkerError(400, `bad usage, please use 'multipart/form-data' instead of ${contentType}`)
   }
 
-  const parts = await multipartToMap(request, parseSize(env.R2_MAX_ALLOWED)!)
+  // If R2 is not available, limit file size to R2_THRESHOLD
+  const maxFileSize = isR2Available(env) ? parseSize(env.R2_MAX_ALLOWED)! : parseSize(env.R2_THRESHOLD)!
+  const parts = await multipartToMap(request, maxFileSize)
 
   if (!parts.has("c")) {
     throw new WorkerError(400, "cannot find content in formdata")

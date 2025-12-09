@@ -31,9 +31,12 @@ custom_domain = true
 binding = "PB"  # do not touch this
 id = ""  # id of your KV namespace
 
-[[r2_buckets]]
-binding = "R2"  # do not touch this
-bucket_name = "pb-shz-al"  # bucket name of your R2 bucket
+# Optional: R2 bucket for large file storage
+# If you don't have R2, comment out the following lines
+# Files larger than R2_THRESHOLD will be rejected without R2
+# [[r2_buckets]]
+# binding = "R2"  # do not touch this
+# bucket_name = "pb-shz-al"  # bucket name of your R2 bucket
 
 [vars]
 # must be consistent with your routes

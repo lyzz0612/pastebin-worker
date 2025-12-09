@@ -31,11 +31,11 @@ You are free to deploy the pastebin on your own domain if you host your domain o
 
 1. Install `node` and `yarn`.
 
-2. Create a KV namespace and R2 bucket on Cloudflare workers dashboard, remember its ID.
+2. Create a KV namespace on Cloudflare workers dashboard, remember its ID. Optionally, create an R2 bucket if you want to support large file uploads (files larger than 100KB by default).
 
 3. Clone the repository and enter the directory.
 
-4. Modify entries in `wrangler.toml`. Its comments will tell you how.
+4. Modify entries in `wrangler.toml`. Its comments will tell you how. Note: R2 bucket is optional - without it, file uploads are limited to the `R2_THRESHOLD` size (default 100KB).
 
 5. Login to Cloudflare and deploy with the following steps:
 
