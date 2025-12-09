@@ -177,8 +177,9 @@ export async function handlePostOrPut(
     // if isMPCComplete, we cannot parse path
     if (!isMPUComplete) {
       const parsed = parsePath(url.pathname)
+      // password can be empty string (for no-password paste), but must be present in URL (with colon)
       if (parsed.password === undefined) {
-        throw new WorkerError(403, `no password for PUT request`)
+        throw new WorkerError(403, `no password separator for PUT request (use /name: for no-password paste)`)
       }
       pasteName = parsed.name
       password = parsed.password
@@ -240,7 +241,8 @@ export async function handlePostOrPut(
 
     const r2Object = isMPUComplete ? await handleMPUComplete(request, env, uploadedParts!) : undefined
 
-    const password = passwdFromForm || genRandStr(DEFAULT_PASSWD_LEN)
+    // If password is provided, use it; otherwise use empty string (no password)
+    const password = passwdFromForm || ""
     await createPaste(env, pasteName, content, {
       expirationSeconds,
       now,
