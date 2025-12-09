@@ -82,7 +82,7 @@ export function UploadedPanel({
               />
               <Input {...inputProps} label={"Expiration"} value={new Date(pasteResponse.expireAt).toLocaleString()} />
               <p className="text-small text-success-600 mt-2">
-                ✓ Uploaded successfully! Redirecting to display page...
+                ✓ Uploaded successfully!
               </p>
             </>
           )

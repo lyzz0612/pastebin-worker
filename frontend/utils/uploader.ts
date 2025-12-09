@@ -55,7 +55,7 @@ export async function uploadPaste(
     content: await constructContent(),
     isUpdate: false,
     isPrivate: pasteSetting.uploadKind === "long",
-    password: pasteSetting.password.length ? pasteSetting.password : undefined,
+    password: pasteSetting.usePassword && pasteSetting.password.length ? pasteSetting.password : undefined,
     expire: pasteSetting.expiration,
     name: pasteSetting.uploadKind === "custom" ? pasteSetting.name : undefined,
     highlightLanguage: editorState.editKind === "edit" ? editorState.editHighlightLang : undefined,

@@ -21,22 +21,6 @@ import { tst } from "../utils/overrides.js"
 
 import "../style.css"
 
-// Helper to construct display URL with manage password
-const makeManageDisplayUrl = (manageUrl: string, encryptionKey?: string) => {
-  // manageUrl format: https://domain.com/name:password
-  // We want: https://domain.com/d/name:password#encryptionKey
-  try {
-    const urlParsed = new URL(manageUrl)
-    urlParsed.pathname = "/d" + urlParsed.pathname
-    if (encryptionKey) {
-      return urlParsed.toString() + "#" + encryptionKey
-    }
-    return urlParsed.toString()
-  } catch {
-    return manageUrl
-  }
-}
-
 export function PasteBin() {
   const [editorState, setEditorState] = useState<PasteEditState>({
     editKind: "edit",
@@ -48,6 +32,7 @@ export function PasteBin() {
   const [pasteSetting, setPasteSetting] = useState<PasteSetting>({
     expiration: DEFAULT_EXPIRATION,
     name: "",
+    usePassword: false,
     password: "",
     uploadKind: "short",
     doEncrypt: false,
@@ -66,23 +51,13 @@ export function PasteBin() {
   function onStartUpload() {
     startUpload(async () => {
       try {
-        let encKey: string | undefined = undefined
         const uploaded = await uploadPaste(
           pasteSetting,
           editorState,
-          (k) => {
-            encKey = k
-            setUploadedEncryptionKey(k)
-          },
+          setUploadedEncryptionKey,
           setLoadingProgress
         )
         setPasteResponse(uploaded)
-
-        // Auto redirect to display page after successful upload
-        const displayUrl = makeManageDisplayUrl(uploaded.manageUrl, encKey)
-        setTimeout(() => {
-          window.location.href = displayUrl
-        }, 1500)
       } catch (e) {
         handleError("Error on Uploading Paste", e as Error)
       }

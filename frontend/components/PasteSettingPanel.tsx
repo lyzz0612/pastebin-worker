@@ -21,6 +21,7 @@ export type UploadKind = "short" | "long" | "custom"
 export type PasteSetting = {
   uploadKind: UploadKind
   expiration: string
+  usePassword: boolean
   password: string
   name: string
 
@@ -39,7 +40,7 @@ export function PanelSettingsPanel({ setting, onSettingChange, ...rest }: PasteS
       <CardHeader className="text-2xl pl-4 pb-2">Settings</CardHeader>
       <Divider className={tst} />
       <CardBody>
-        <div className="gap-4 mb-3 flex flex-row">
+        <div className="gap-4 mb-3 flex flex-row items-end">
           <Input
             type="text"
             label="Expiration"
@@ -57,16 +58,27 @@ export function PanelSettingsPanel({ setting, onSettingChange, ...rest }: PasteS
             errorMessage={verifyExpiration(setting.expiration)[1]}
             description={verifyExpiration(setting.expiration)[1]}
           />
-          <Input
-            type="password"
-            label="Password"
-            aria-labelledby=""
-            value={setting.password}
-            onValueChange={(p) => onSettingChange({ ...setting, password: p })}
-            classNames={inputOverrides}
-            placeholder={"Generated randomly"}
-            description="Used to update/delete your paste"
-          />
+          <div className="flex flex-col gap-2">
+            <Switch
+              classNames={switchOverrides}
+              isSelected={setting.usePassword}
+              onValueChange={(v) => onSettingChange({ ...setting, usePassword: v, password: v ? setting.password : "" })}
+              size="sm"
+            >
+              Set password
+            </Switch>
+            {setting.usePassword && (
+              <Input
+                type="password"
+                aria-labelledby=""
+                value={setting.password}
+                onValueChange={(p) => onSettingChange({ ...setting, password: p })}
+                classNames={inputOverrides}
+                placeholder={"Enter password"}
+                description="Used to update/delete your paste"
+              />
+            )}
+          </div>
         </div>
         <RadioGroup
           className="gap-4 mb-3 w-full"
