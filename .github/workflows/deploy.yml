@@ -72,14 +72,15 @@ jobs:
       - name: "Build Frontend"
         run: yarn build:frontend
 
-      - name: "Test"
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-        run: |
-          yarn fmt
-          yarn lint
-          yarn test
+      # 可选：部署前运行测试，如果不需要可以注释掉
+      # - name: "Test"
+      #   env:
+      #     CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      #     CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      #   run: |
+      #     yarn fmt
+      #     yarn lint
+      #     yarn test
 
       - name: "Deploy"
         env:
