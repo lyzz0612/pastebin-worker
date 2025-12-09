@@ -74,7 +74,8 @@ MAX_EXPIRATION = "30d"
 BASIC_AUTH = {}
 
 # Files larger than this threshold will be stored in R2
-R2_THRESHOLD = "100K"
+# KV supports up to 25MB values, so we can set this higher for text uploads without R2
+R2_THRESHOLD = "5M"
 
 # File larger than this will be denied
 R2_MAX_ALLOWED = "100M"

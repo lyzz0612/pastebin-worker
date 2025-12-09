@@ -99,7 +99,7 @@ custom_domain = true
 3. ✅ 更新 `wrangler.toml` 中的绑定配置
 4. ✅ 部署 Worker
 
-如果 R2 不可用（账户未启用或权限不足），会自动禁用 R2 功能，大文件上传将受到 `R2_THRESHOLD` 限制（默认 100KB）。
+如果 R2 不可用（账户未启用或权限不足），会自动禁用 R2 功能，大文件上传将受到 `R2_THRESHOLD` 限制（默认 5MB）。
 
 ---
 
@@ -109,11 +109,11 @@ custom_domain = true
 
 1. Install `node` and `yarn`.
 
-2. Create a KV namespace on Cloudflare workers dashboard, remember its ID. Optionally, create an R2 bucket if you want to support large file uploads (files larger than 100KB by default).
+2. Create a KV namespace on Cloudflare workers dashboard, remember its ID. Optionally, create an R2 bucket if you want to support large file uploads (files larger than 5MB by default).
 
 3. Clone the repository and enter the directory.
 
-4. Modify entries in `wrangler.toml`. Its comments will tell you how. Note: R2 bucket is optional - without it, file uploads are limited to the `R2_THRESHOLD` size (default 100KB).
+4. Modify entries in `wrangler.toml`. Its comments will tell you how. Note: R2 bucket is optional - without it, file uploads are limited to the `R2_THRESHOLD` size (default 5MB).
 
 5. Login to Cloudflare and deploy with the following steps:
 
