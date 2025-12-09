@@ -77,6 +77,36 @@ function runWrangler(args, options = {}) {
   }
 }
 
+// 临时修复 wrangler.toml 中的空 KV ID，避免 wrangler 命令验证失败
+function temporarilyFixEmptyKvId() {
+  const configPath = resolve(process.cwd(), "wrangler.toml")
+  if (!existsSync(configPath)) return null
+
+  const content = readFileSync(configPath, "utf-8")
+
+  // 检查是否有空的 KV ID
+  if (content.match(/^\[\[kv_namespaces\]\][\s\S]*?^id\s*=\s*""/m)) {
+    // 临时使用一个占位符 ID
+    const tempContent = content.replace(
+      /(^\[\[kv_namespaces\]\][\s\S]*?^id\s*=\s*)""/m,
+      '$1"placeholder-will-be-replaced"',
+    )
+    writeFileSync(configPath, tempContent)
+    log("debug", "临时修复空 KV ID")
+    return content // 返回原始内容以便恢复
+  }
+  return null
+}
+
+// 恢复原始配置
+function restoreConfig(originalContent) {
+  if (originalContent) {
+    const configPath = resolve(process.cwd(), "wrangler.toml")
+    writeFileSync(configPath, originalContent)
+    log("debug", "已恢复原始配置")
+  }
+}
+
 // 获取现有的 KV 命名空间列表
 function listKVNamespaces() {
   const result = runWrangler(["kv", "namespace", "list"])
@@ -364,11 +394,16 @@ async function main() {
   log("info", "=========================================")
   console.log("")
 
+  let originalConfig = null
+
   try {
     // 检查环境变量
     if (!checkRequiredEnvVars()) {
       process.exit(1)
     }
+
+    // 临时修复空 KV ID，避免 wrangler 命令验证失败
+    originalConfig = temporarilyFixEmptyKvId()
 
     // 检查 wrangler
     const versionResult = runWrangler(["--version"])
@@ -385,6 +420,10 @@ async function main() {
 
     // 设置 KV
     const kvId = setupKVNamespace()
+
+    // 恢复原始配置后再更新（确保从干净状态开始）
+    restoreConfig(originalConfig)
+    originalConfig = null
 
     // 设置 R2
     const r2Config = setupR2Bucket()
@@ -406,6 +445,8 @@ async function main() {
     log("info", "=========================================")
     console.log("")
   } catch (error) {
+    // 确保出错时也恢复原始配置
+    restoreConfig(originalConfig)
     log("error", error.message)
     process.exit(1)
   }
