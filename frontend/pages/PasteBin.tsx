@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useTransition } from "react"
+import React, { useState, useTransition } from "react"
 
 import { Button, Link } from "@heroui/react"
 
@@ -9,20 +9,33 @@ import { UploadedPanel } from "../components/UploadedPanel.js"
 import { PasteInputPanel, PasteEditState } from "../components/PasteInputPanel.js"
 
 import type { PasteResponse } from "../../shared/interfaces.js"
-import { parsePath, parseFilenameFromContentDisposition } from "../../shared/parsers.js"
 
 import {
   verifyExpiration,
-  verifyManageUrl,
   verifyName,
   maxExpirationReadable,
   BaseUrl,
-  APIUrl,
 } from "../utils/utils.js"
 import { uploadPaste } from "../utils/uploader.js"
 import { tst } from "../utils/overrides.js"
 
 import "../style.css"
+
+// Helper to construct display URL with manage password
+const makeManageDisplayUrl = (manageUrl: string, encryptionKey?: string) => {
+  // manageUrl format: https://domain.com/name:password
+  // We want: https://domain.com/d/name:password#encryptionKey
+  try {
+    const urlParsed = new URL(manageUrl)
+    urlParsed.pathname = "/d" + urlParsed.pathname
+    if (encryptionKey) {
+      return urlParsed.toString() + "#" + encryptionKey
+    }
+    return urlParsed.toString()
+  } catch {
+    return manageUrl
+  }
+}
 
 export function PasteBin() {
   const [editorState, setEditorState] = useState<PasteEditState>({
@@ -34,7 +47,6 @@ export function PasteBin() {
 
   const [pasteSetting, setPasteSetting] = useState<PasteSetting>({
     expiration: DEFAULT_EXPIRATION,
-    manageUrl: "",
     name: "",
     password: "",
     uploadKind: "short",
@@ -46,91 +58,33 @@ export function PasteBin() {
 
   const [isUploadPending, startUpload] = useTransition()
   const [loadingProgress, setLoadingProgress] = useState<number | undefined>(undefined)
-  const [isInitPasteLoading, startFetchingInitPaste] = useTransition()
 
   const [_, modeSelection, setModeSelection] = useDarkModeSelection()
 
-  const { ErrorModal, showModal, handleError, handleFailedResp } = useErrorModal()
-
-  // handle admin URL
-  useEffect(() => {
-    // TODO: do not fetch paste for a large file paste
-    const pathname = location.pathname
-    // const pathname = new URL("http://localhost:8787/ds2W:ShNkSKdf5rZypdcJEcAdFmw3").pathname
-    const { name, password, filename, ext } = parsePath(pathname)
-
-    if (password !== undefined && pasteSetting.manageUrl === "") {
-      setPasteSetting({
-        ...pasteSetting,
-        uploadKind: "manage",
-        manageUrl: `${APIUrl}/${name}:${password}`,
-      })
-
-      let pasteUrl = `${APIUrl}/${name}`
-      if (filename) pasteUrl = `${pasteUrl}/${filename}`
-      if (ext) pasteUrl = `${pasteUrl}${ext}`
-
-      startFetchingInitPaste(async () => {
-        try {
-          const resp = await fetch(pasteUrl)
-          if (!resp.ok) {
-            await handleFailedResp(`Error on Fetching ${pasteUrl}`, resp)
-            return
-          }
-          const contentType = resp.headers.get("Content-Type")
-          const contentDisp = resp.headers.get("Content-Disposition")
-          const contentLang = resp.headers.get("X-PB-Highlight-Language")
-
-          let pasteFilename = filename
-          if (pasteFilename === undefined && contentDisp !== null) {
-            pasteFilename = parseFilenameFromContentDisposition(contentDisp)
-          }
-
-          if (contentLang || (contentType && contentType.startsWith("text/"))) {
-            setEditorState({
-              editKind: "edit",
-              editContent: await resp.text(),
-              file: null,
-              editHighlightLang: contentLang || undefined,
-              editFilename: pasteFilename,
-            })
-          } else {
-            setEditorState({
-              editKind: "file",
-              editContent: "",
-              file: new File([await resp.blob()], pasteFilename || "[unknown filename]"),
-            })
-          }
-        } catch (e) {
-          handleError(`Error on Fetching ${pasteUrl}`, e as Error)
-        }
-      })
-    }
-  }, [])
+  const { ErrorModal, handleError } = useErrorModal()
 
   function onStartUpload() {
     startUpload(async () => {
       try {
-        const uploaded = await uploadPaste(pasteSetting, editorState, setUploadedEncryptionKey, setLoadingProgress)
+        let encKey: string | undefined = undefined
+        const uploaded = await uploadPaste(
+          pasteSetting,
+          editorState,
+          (k) => {
+            encKey = k
+            setUploadedEncryptionKey(k)
+          },
+          setLoadingProgress
+        )
         setPasteResponse(uploaded)
+
+        // Auto redirect to display page after successful upload
+        const displayUrl = makeManageDisplayUrl(uploaded.manageUrl, encKey)
+        setTimeout(() => {
+          window.location.href = displayUrl
+        }, 1500)
       } catch (e) {
         handleError("Error on Uploading Paste", e as Error)
-      }
-    })
-  }
-
-  function onStartDelete() {
-    startUpload(async () => {
-      try {
-        const resp = await fetch(pasteSetting.manageUrl, { method: "DELETE" })
-        if (resp.ok) {
-          showModal("Deleted Successfully", "It may takes 60 seconds for the deletion to propagate to the world")
-          setPasteResponse(undefined)
-        } else {
-          await handleFailedResp("Error on Delete Paste", resp)
-        }
-      } catch (e) {
-        handleError("Error on Delete Paste", e as Error)
       }
     })
   }
@@ -147,18 +101,12 @@ export function PasteBin() {
         return true
       } else if (pasteSetting.uploadKind === "custom") {
         return verifyName(pasteSetting.name)[0]
-      } else if (pasteSetting.uploadKind === "manage") {
-        return verifyManageUrl(pasteSetting.manageUrl)[0]
       } else {
         return false
       }
     } else {
       return false
     }
-  }
-
-  function canDelete(): boolean {
-    return verifyManageUrl(pasteSetting.manageUrl)[0]
   }
 
   const info = (
@@ -194,13 +142,8 @@ export function PasteBin() {
         className={`mr-4 ${tst}`}
         isDisabled={!canUpload() || isUploadPending}
       >
-        {pasteSetting.uploadKind === "manage" ? "Update" : "Upload"}
+        Upload
       </Button>
-      {pasteSetting.uploadKind === "manage" ? (
-        <Button color="danger" onPress={onStartDelete} className={tst} isDisabled={!canDelete()}>
-          Delete
-        </Button>
-      ) : null}
     </div>
   )
 
@@ -223,7 +166,7 @@ export function PasteBin() {
       <div className="grow w-full max-w-[64rem]">
         {info}
         <PasteInputPanel
-          isPasteLoading={isInitPasteLoading}
+          isPasteLoading={false}
           state={editorState}
           onStateChange={setEditorState}
           className="mt-6 mb-4 mx-2 lg:mx-0"

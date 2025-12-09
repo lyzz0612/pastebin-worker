@@ -1,24 +1,28 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useTransition } from "react"
 
-import { Button, CircularProgress, Link, Tooltip } from "@heroui/react"
+import { Button, CircularProgress, Input, Link, Tooltip } from "@heroui/react"
 import chardet from "chardet"
 
 import { useErrorModal } from "../components/ErrorModal.js"
 import { DarkModeToggle, useDarkModeSelection } from "../components/DarkModeToggle.js"
-import { DownloadIcon, HomeIcon } from "../components/icons.js"
+import { DownloadIcon, HomeIcon, EditIcon, SaveIcon, TrashIcon, XIcon } from "../components/icons.js"
 import { CopyWidget } from "../components/CopyWidget.js"
+import { CodeEditor } from "../components/CodeEditor.js"
 
 import { parseFilenameFromContentDisposition, parsePath } from "../../shared/parsers.js"
 import { decodeKey, decrypt, EncryptionScheme } from "../utils/encryption.js"
-import { formatSize, APIUrl } from "../utils/utils.js"
-import { tst } from "../utils/overrides.js"
+import { formatSize, APIUrl, verifyExpiration, maxExpirationReadable } from "../utils/utils.js"
+import { tst, inputOverrides } from "../utils/overrides.js"
 import { highlightHTML, useHLJS } from "../utils/HighlightLoader.js"
+import { uploadNormal, UploadOptions } from "../../shared/uploadPaste.js"
+import type { PasteResponse } from "../../shared/interfaces.js"
 
 import "../style.css"
 import "../styles/highlight-theme-light.css"
 import "../styles/highlight-theme-dark.css"
 
 const utf8CompatibleEncodings = ["UTF-8", "ASCII", "ISO-8859-1"]
+const DEFAULT_EXPIRATION = "7d"
 
 export function DisplayPaste() {
   const [pasteFile, setPasteFile] = useState<File | undefined>(undefined)
@@ -33,6 +37,15 @@ export function DisplayPaste() {
 
   const [isLoading, setIsLoading] = useState<boolean>(false)
 
+  // Edit mode states
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [editContent, setEditContent] = useState("")
+  const [editLang, setEditLang] = useState<string | undefined>(undefined)
+  const [editFilename, setEditFilename] = useState<string | undefined>(undefined)
+  const [editExpiration, setEditExpiration] = useState(DEFAULT_EXPIRATION)
+  const [managePassword, setManagePassword] = useState<string | undefined>(undefined)
+  const [isActionPending, startAction] = useTransition()
+
   const { ErrorModal, showModal, handleFailedResp } = useErrorModal()
   const [_, modeSelection, setModeSelection] = useDarkModeSelection()
   const hljs = useHLJS()
@@ -46,7 +59,14 @@ export function DisplayPaste() {
   // const url = new URL("http://localhost:8787/GQbf")
   const url = new URL(location.toString())
 
-  const { name, ext, filename } = parsePath(url.pathname)
+  const { name, password: urlPassword, ext, filename } = parsePath(url.pathname)
+
+  // Extract password from URL if present (format: /d/name:password)
+  useEffect(() => {
+    if (urlPassword) {
+      setManagePassword(urlPassword)
+    }
+  }, [urlPassword])
 
   useEffect(() => {
     const pasteUrl = `${APIUrl}/${name}`
@@ -124,6 +144,84 @@ export function DisplayPaste() {
     })
   }, [])
 
+  // Enter edit mode
+  function onEnterEditMode() {
+    if (pasteStringContent) {
+      setEditContent(pasteStringContent)
+      setEditLang(pasteLang)
+      setEditFilename(pasteFile?.name)
+      setIsEditMode(true)
+    }
+  }
+
+  // Cancel edit mode
+  function onCancelEdit() {
+    setIsEditMode(false)
+    setEditContent("")
+  }
+
+  // Update paste
+  function onUpdatePaste() {
+    if (!managePassword) {
+      showModal("Error", "No manage password available. Cannot update paste.")
+      return
+    }
+
+    startAction(async () => {
+      try {
+        const manageUrl = `${APIUrl}/${name}:${managePassword}`
+        const options: UploadOptions = {
+          content: new File([editContent], editFilename || ""),
+          isUpdate: true,
+          expire: editExpiration,
+          highlightLanguage: editLang,
+          manageUrl,
+        }
+
+        const resp = await uploadNormal(APIUrl, options)
+        showModal("Updated Successfully", `Paste updated. Expires at: ${new Date(resp.expireAt).toLocaleString()}`)
+
+        // Update displayed content
+        const newBuffer = new TextEncoder().encode(editContent)
+        setPasteContentBuffer(newBuffer)
+        setPasteFile(new File([newBuffer], editFilename || name))
+        setPasteLang(editLang)
+        setIsEditMode(false)
+      } catch (e) {
+        showModal("Error on Update", (e as Error).message)
+      }
+    })
+  }
+
+  // Delete paste
+  function onDeletePaste() {
+    if (!managePassword) {
+      showModal("Error", "No manage password available. Cannot delete paste.")
+      return
+    }
+
+    if (!confirm("Are you sure you want to delete this paste?")) {
+      return
+    }
+
+    startAction(async () => {
+      try {
+        const manageUrl = `${APIUrl}/${name}:${managePassword}`
+        const resp = await fetch(manageUrl, { method: "DELETE" })
+        if (resp.ok) {
+          showModal("Deleted Successfully", "Paste has been deleted. Redirecting to home...")
+          setTimeout(() => {
+            window.location.href = "/"
+          }, 2000)
+        } else {
+          await handleFailedResp("Error on Delete Paste", resp)
+        }
+      } catch (e) {
+        showModal("Error on Delete", (e as Error).message)
+      }
+    })
+  }
+
   const binaryFileIndicator = pasteFile && (
     <div className="absolute top-[50%] left-[50%] translate-[-50%] flex flex-col items-center w-full">
       <div className="text-foreground-600 mb-2">{`${pasteFile?.name} (${formatSize(pasteFile.size)})`}</div>
@@ -138,6 +236,10 @@ export function DisplayPaste() {
 
   const lineNumOffset = `${Math.floor(Math.log10(pasteLineCount)) + 3}ch`
   const buttonClasses = `rounded-full bg-background hover:bg-default-100 ${tst}`
+
+  // Check if user can edit (has manage password and content is text)
+  const canEdit = managePassword && showFileContent && !isFileBinary && isDecrypted !== "encrypted"
+
   return (
     <main
       className={`flex flex-col items-center min-h-screen transition-transform-background bg-background ${tst} text-foreground w-full p-2`}
@@ -157,12 +259,12 @@ export function DisplayPaste() {
               {isDecrypted === "decrypted" ? " (Decrypted)" : isDecrypted === "encrypted" ? " (Encrypted)" : ""}
             </span>
           </h1>
-          {showFileContent && (
+          {!isEditMode && showFileContent && (
             <Tooltip content={`Copy to clipboard`}>
               <CopyWidget className={buttonClasses} getCopyContent={() => pasteStringContent!} />
             </Tooltip>
           )}
-          {pasteFile && (
+          {!isEditMode && pasteFile && (
             <Tooltip content={`Download as file`}>
               <Button aria-label="Download" isIconOnly className={buttonClasses}>
                 <a href={URL.createObjectURL(pasteFile)} download={pasteFile.name}>
@@ -171,58 +273,129 @@ export function DisplayPaste() {
               </Button>
             </Tooltip>
           )}
+          {!isEditMode && canEdit && (
+            <Tooltip content="Edit paste">
+              <Button aria-label="Edit" isIconOnly className={buttonClasses} onPress={onEnterEditMode}>
+                <EditIcon className="size-6" />
+              </Button>
+            </Tooltip>
+          )}
+          {!isEditMode && managePassword && (
+            <Tooltip content="Delete paste">
+              <Button
+                aria-label="Delete"
+                isIconOnly
+                className={`${buttonClasses} text-danger`}
+                onPress={onDeletePaste}
+                isDisabled={isActionPending}
+              >
+                <TrashIcon className="size-6" />
+              </Button>
+            </Tooltip>
+          )}
           <DarkModeToggle modeSelection={modeSelection} setModeSelection={setModeSelection} />
         </div>
-        <div className="my-4">
-          <div className={`w-full bg-default-100 rounded-lg p-3 relative ${tst}`}>
-            {isLoading ? (
-              <div className={"h-[10em]"}>
-                <CircularProgress
-                  className="h-[10em] absolute top-[50%] left-[50%] translate-[-50%]"
-                  label={"Loading..."}
-                />
+
+        {/* Edit Mode */}
+        {isEditMode ? (
+          <div className="my-4">
+            <CodeEditor
+              content={editContent}
+              setContent={setEditContent}
+              lang={editLang}
+              setLang={setEditLang}
+              filename={editFilename}
+              setFilename={setEditFilename}
+              placeholder="Edit your paste here"
+            />
+            <div className="mt-4 flex flex-row gap-4 items-end">
+              <Input
+                type="text"
+                label="New Expiration"
+                classNames={{ base: "max-w-[12rem]", ...inputOverrides }}
+                value={editExpiration}
+                onValueChange={setEditExpiration}
+                isInvalid={!verifyExpiration(editExpiration)[0]}
+                errorMessage={verifyExpiration(editExpiration)[1]}
+                description={verifyExpiration(editExpiration)[1]}
+              />
+              <div className="flex gap-2">
+                <Button
+                  color="primary"
+                  onPress={onUpdatePaste}
+                  isDisabled={isActionPending || !verifyExpiration(editExpiration)[0]}
+                  startContent={isActionPending ? <CircularProgress size="sm" /> : <SaveIcon className="size-5" />}
+                >
+                  {isActionPending ? "Saving..." : "Save"}
+                </Button>
+                <Button
+                  color="default"
+                  variant="bordered"
+                  onPress={onCancelEdit}
+                  isDisabled={isActionPending}
+                  startContent={<XIcon className="size-5" />}
+                >
+                  Cancel
+                </Button>
               </div>
-            ) : (
-              pasteFile && (
-                <div className={showFileContent ? "" : "h-[10em]"}>
-                  {showFileContent ? (
-                    <>
-                      <div className="text-foreground-600 mb-2 text-small flex flex-row gap-2">
-                        <span>{pasteFile?.name}</span>
-                        <span>{`(${formatSize(pasteFile.size)})`}</span>
-                        {forceShowBinary && (
-                          <button className="ml-2 text-primary-500" onClick={() => setForceShowBinary(false)}>
-                            (Click to hide)
-                          </button>
-                        )}
-                        {pasteLang && <span className={"grow text-right"}>{pasteLang}</span>}
-                      </div>
-                      <div className="font-mono relative" role="article">
-                        <pre
-                          style={{ marginLeft: lineNumOffset, width: `calc(100% - ${lineNumOffset})` }}
-                          dangerouslySetInnerHTML={{ __html: highlightedHTML }}
-                          className={"overflow-x-auto"}
-                        />
-                        <span
-                          className={
-                            "line-number-rows absolute pointer-events-none text-default-500 top-0 left-0 " +
-                            "border-solid border-default-300 border-r-1"
-                          }
-                        >
-                          {Array.from({ length: pasteLineCount }, (_, idx) => {
-                            return <span key={idx} />
-                          })}
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    binaryFileIndicator
-                  )}
-                </div>
-              )
-            )}
+            </div>
+            <p className="mt-2 text-small text-foreground-500">
+              Max expiration: {maxExpirationReadable}
+            </p>
           </div>
-        </div>
+        ) : (
+          /* View Mode */
+          <div className="my-4">
+            <div className={`w-full bg-default-100 rounded-lg p-3 relative ${tst}`}>
+              {isLoading ? (
+                <div className={"h-[10em]"}>
+                  <CircularProgress
+                    className="h-[10em] absolute top-[50%] left-[50%] translate-[-50%]"
+                    label={"Loading..."}
+                  />
+                </div>
+              ) : (
+                pasteFile && (
+                  <div className={showFileContent ? "" : "h-[10em]"}>
+                    {showFileContent ? (
+                      <>
+                        <div className="text-foreground-600 mb-2 text-small flex flex-row gap-2">
+                          <span>{pasteFile?.name}</span>
+                          <span>{`(${formatSize(pasteFile.size)})`}</span>
+                          {forceShowBinary && (
+                            <button className="ml-2 text-primary-500" onClick={() => setForceShowBinary(false)}>
+                              (Click to hide)
+                            </button>
+                          )}
+                          {pasteLang && <span className={"grow text-right"}>{pasteLang}</span>}
+                        </div>
+                        <div className="font-mono relative" role="article">
+                          <pre
+                            style={{ marginLeft: lineNumOffset, width: `calc(100% - ${lineNumOffset})` }}
+                            dangerouslySetInnerHTML={{ __html: highlightedHTML }}
+                            className={"overflow-x-auto"}
+                          />
+                          <span
+                            className={
+                              "line-number-rows absolute pointer-events-none text-default-500 top-0 left-0 " +
+                              "border-solid border-default-300 border-r-1"
+                            }
+                          >
+                            {Array.from({ length: pasteLineCount }, (_, idx) => {
+                              return <span key={idx} />
+                            })}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      binaryFileIndicator
+                    )}
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+        )}
       </div>
       <ErrorModal />
     </main>

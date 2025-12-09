@@ -11,19 +11,18 @@ import {
   Switch,
   Tooltip,
 } from "@heroui/react"
-import { BaseUrl, verifyExpiration, verifyManageUrl, verifyName } from "../utils/utils.js"
+import { BaseUrl, verifyExpiration, verifyName } from "../utils/utils.js"
 import React from "react"
 import { InfoIcon } from "./icons.js"
 import { cardOverrides, inputOverrides, radioOverrides, switchOverrides, tst } from "../utils/overrides.js"
 
-export type UploadKind = "short" | "long" | "custom" | "manage"
+export type UploadKind = "short" | "long" | "custom"
 
 export type PasteSetting = {
   uploadKind: UploadKind
   expiration: string
   password: string
   name: string
-  manageUrl: string
 
   doEncrypt: boolean
 }
@@ -103,20 +102,6 @@ export function PanelSettingsPanel({ setting, onSettingChange, ...rest }: PasteS
                   <span className="text-default-500 text-small w-max">{`${BaseUrl}/~`}</span>
                 </div>
               }
-            />
-          ) : null}
-          <Radio value="manage" classNames={radioClassNames}>
-            <div className="">Update or delete</div>
-          </Radio>
-          {setting.uploadKind === "manage" ? (
-            <Input
-              value={setting.manageUrl}
-              onValueChange={(m) => onSettingChange({ ...setting, manageUrl: m })}
-              type="text"
-              className="shrink"
-              isInvalid={!verifyManageUrl(setting.manageUrl)[0]}
-              errorMessage={verifyManageUrl(setting.manageUrl)[1]}
-              placeholder={`Manage URL`}
             />
           ) : null}
         </RadioGroup>

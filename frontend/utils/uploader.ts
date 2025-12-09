@@ -53,14 +53,13 @@ export async function uploadPaste(
 
   const options: UploadOptions = {
     content: await constructContent(),
-    isUpdate: pasteSetting.uploadKind === "manage",
+    isUpdate: false,
     isPrivate: pasteSetting.uploadKind === "long",
     password: pasteSetting.password.length ? pasteSetting.password : undefined,
     expire: pasteSetting.expiration,
     name: pasteSetting.uploadKind === "custom" ? pasteSetting.name : undefined,
     highlightLanguage: editorState.editKind === "edit" ? editorState.editHighlightLang : undefined,
     encryptionScheme: pasteSetting.doEncrypt ? encryptionScheme : undefined,
-    manageUrl: pasteSetting.manageUrl,
   }
 
   const contentLength = options.content.size
