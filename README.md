@@ -66,37 +66,30 @@ Fork 本仓库到你的 GitHub 账户。
 | `CF_API_TOKEN` | Cloudflare API Token (步骤 2 创建的) |
 | `CF_ACCOUNT_ID` | Cloudflare Account ID (步骤 3 获取的) |
 
-#### 步骤 5: 修改配置 (可选)
+#### 步骤 5: 触发部署
 
-默认配置会使用 Cloudflare 自动分配的 `*.workers.dev` 域名，无需额外配置即可部署。
+进入 GitHub 仓库页面 → **Actions** → **Test and Deploy** → **Run workflow**
 
-如果你需要自定义域名，编辑 `wrangler.toml` 文件：
+可选参数：
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `r2_bucket_name` | R2 存储桶名称 | `pb-storage` |
+| `skip_r2` | 跳过 R2 配置 | `false` |
+
+部署成功后，访问地址会显示在 Actions 的 Summary 中。
+
+#### 可选: 使用自定义域名
+
+如果你想使用自己的域名而不是 workers.dev，编辑 `wrangler.toml`：
 
 ```toml
-# 使用 workers.dev 域名 (默认)
-workers_dev = true
+workers_dev = false
 
-# 或者使用自定义域名：
-# workers_dev = false
-# [[routes]]
-# pattern = "your-domain.com"
-# custom_domain = true
-
-[vars]
-# 如果使用 workers.dev，留空即可，会自动配置
-# 如果使用自定义域名，填写你的域名
-DEPLOY_URL = ""
+[[routes]]
+pattern = "paste.your-domain.com"
+custom_domain = true
 ```
-
-#### 步骤 6: 触发部署
-
-- **自动部署**: 推送代码到 `goshujin` 分支会自动触发部署
-- **手动部署**: 在 GitHub 仓库页面，进入 **Actions** → **Test and Deploy** → **Run workflow**
-
-手动部署时可以配置以下选项：
-- `r2_bucket_name`: 自定义 R2 存储桶名称 (留空使用默认值 `pb-storage`)
-- `deploy_url`: 自定义部署 URL
-- `skip_r2`: 跳过 R2 配置，仅使用 KV 存储
 
 #### 自动配置说明
 

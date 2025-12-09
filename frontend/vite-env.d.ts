@@ -1,5 +1,4 @@
-declare const DEPLOY_URL: string
-declare const API_URL: string
+// DEPLOY_URL 和 API_URL 不再需要，前端直接使用 window.location.origin
 declare const REPO: string
 declare const MAX_EXPIRATION: string
 declare const DEFAULT_EXPIRATION: string

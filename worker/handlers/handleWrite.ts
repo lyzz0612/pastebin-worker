@@ -159,12 +159,15 @@ export async function handlePostOrPut(
     })
   }
 
+  // 使用请求的 origin 作为基础 URL，这样可以在 Cloudflare 后台修改后立即生效
+  const baseUrl = env.DEPLOY_URL || url.origin
+
   function accessUrl(short: string): string {
-    return env.DEPLOY_URL + "/" + short
+    return baseUrl + "/" + short
   }
 
   function manageUrl(short: string, passwd: string): string {
-    return env.DEPLOY_URL + "/" + short + PASSWD_SEP + passwd
+    return baseUrl + "/" + short + PASSWD_SEP + passwd
   }
 
   const now = new Date()

@@ -10,7 +10,7 @@ import { CopyWidget } from "../components/CopyWidget.js"
 
 import { parseFilenameFromContentDisposition, parsePath } from "../../shared/parsers.js"
 import { decodeKey, decrypt, EncryptionScheme } from "../utils/encryption.js"
-import { formatSize } from "../utils/utils.js"
+import { formatSize, APIUrl } from "../utils/utils.js"
 import { tst } from "../utils/overrides.js"
 import { highlightHTML, useHLJS } from "../utils/HighlightLoader.js"
 
@@ -49,7 +49,7 @@ export function DisplayPaste() {
   const { name, ext, filename } = parsePath(url.pathname)
 
   useEffect(() => {
-    const pasteUrl = `${API_URL}/${name}`
+    const pasteUrl = `${APIUrl}/${name}`
 
     const fetchPaste = async () => {
       try {

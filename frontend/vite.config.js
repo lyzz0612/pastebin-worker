@@ -9,7 +9,6 @@ import * as toml from "toml"
 
 export default defineConfig(({ mode }) => {
   const wranglerConfigPath = "wrangler.toml"
-  const devAPIUrl = "http://localhost:8787"
   const wranglerConfigText = readFileSync(wranglerConfigPath, "utf8")
   const wranglerConfigParsed = toml.parse(wranglerConfigText)
 
@@ -20,8 +19,6 @@ export default defineConfig(({ mode }) => {
       throw new Error(`Cannot find vars.${name} in ${wranglerConfigPath}`)
     }
   }
-  const deployUrl = getVar("DEPLOY_URL")
-
   const indexTitle = getVar("INDEX_PAGE_TITLE") + (mode === "development" ? " (dev)" : "")
   const transformHtmlPlugin = () => ({
     name: "transform-html",
@@ -36,8 +33,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss(), transformHtmlPlugin()],
     define: {
-      DEPLOY_URL: mode === "development" ? JSON.stringify(devAPIUrl) : JSON.stringify(deployUrl),
-      API_URL: mode === "development" ? JSON.stringify(devAPIUrl) : JSON.stringify(deployUrl),
+      // DEPLOY_URL 和 API_URL 不再需要，前端直接使用 window.location.origin
       REPO: JSON.stringify(getVar("REPO")),
       MAX_EXPIRATION: JSON.stringify(getVar("MAX_EXPIRATION")),
       DEFAULT_EXPIRATION: JSON.stringify(getVar("DEFAULT_EXPIRATION")),

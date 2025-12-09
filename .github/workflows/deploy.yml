@@ -6,11 +6,7 @@ on:
   workflow_dispatch: # 支持手动触发
     inputs:
       r2_bucket_name:
-        description: "R2 存储桶名称 (留空则自动生成)"
-        required: false
-        default: ""
-      deploy_url:
-        description: "部署 URL (留空则使用 wrangler.toml 中的配置)"
+        description: "R2 存储桶名称 (留空使用默认值 pb-storage)"
         required: false
         default: ""
       skip_r2:
@@ -48,7 +44,6 @@ jobs:
           WORKER_NAME: ${{ env.WORKER_NAME }}
           KV_NAMESPACE_NAME: ${{ env.KV_NAMESPACE_NAME }}
           R2_BUCKET_NAME: ${{ env.R2_BUCKET_NAME }}
-          DEPLOY_URL: ${{ github.event.inputs.deploy_url }}
           SKIP_R2: ${{ github.event.inputs.skip_r2 }}
         run: |
           echo "::group::配置 Cloudflare 资源"
@@ -83,17 +78,35 @@ jobs:
       #     yarn test
 
       - name: "Deploy"
+        id: deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: |
-          yarn deploy
+          # 部署并捕获输出
+          deploy_output=$(yarn deploy 2>&1) || true
+          echo "$deploy_output"
+
+          # 尝试从部署输出中提取 URL
+          deployed_url=$(echo "$deploy_output" | grep -oP 'https://[a-zA-Z0-9.-]+\.workers\.dev' | head -1 || echo "")
+          if [ -n "$deployed_url" ]; then
+            echo "deployed_url=$deployed_url" >> $GITHUB_OUTPUT
+          fi
 
       - name: "Deployment Summary"
         if: success()
         run: |
           echo "## 🚀 部署成功!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+
+          # 显示部署 URL
+          deployed_url="${{ steps.deploy.outputs.deployed_url }}"
+          if [ -n "$deployed_url" ]; then
+            echo "### 🌐 访问地址" >> $GITHUB_STEP_SUMMARY
+            echo "**$deployed_url**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
           echo "### 配置信息" >> $GITHUB_STEP_SUMMARY
           echo "- **KV ID**: \`${{ steps.setup-cf.outputs.kv_id }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **R2 启用**: \`${{ steps.setup-cf.outputs.r2_enabled }}\`" >> $GITHUB_STEP_SUMMARY
@@ -101,7 +114,7 @@ jobs:
             echo "- **R2 存储桶**: \`${{ steps.setup-cf.outputs.r2_bucket_name }}\`" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 注意事项" >> $GITHUB_STEP_SUMMARY
           if [ "${{ steps.setup-cf.outputs.r2_enabled }}" != "true" ]; then
+            echo "### 注意事项" >> $GITHUB_STEP_SUMMARY
             echo "⚠️ R2 未启用，大文件上传将受到限制 (最大 \`R2_THRESHOLD\`)" >> $GITHUB_STEP_SUMMARY
           fi

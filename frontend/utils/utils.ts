@@ -1,8 +1,9 @@
 import { NAME_REGEX, PASSWD_SEP } from "../../shared/constants.js"
 import { parseExpiration, parseExpirationReadable } from "../../shared/parsers.js"
 
-export const BaseUrl = DEPLOY_URL
-export const APIUrl = API_URL
+// 直接使用当前网址作为 BaseUrl 和 APIUrl
+export const BaseUrl = typeof window !== "undefined" ? window.location.origin : ""
+export const APIUrl = typeof window !== "undefined" ? window.location.origin : ""
 
 export const maxExpirationSeconds = parseExpiration(MAX_EXPIRATION)!
 export const maxExpirationReadable = parseExpirationReadable(MAX_EXPIRATION)!

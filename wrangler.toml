@@ -41,10 +41,9 @@ id = ""  # id of your KV namespace (auto-configured by deploy workflow)
 # bucket_name = "pb-storage"  # bucket name of your R2 bucket (auto-configured)
 
 [vars]
-# The URL where your worker is deployed
-# If using workers.dev, it will be: https://<worker-name>.<account-subdomain>.workers.dev
-# This will be auto-configured by deploy workflow if not set
-DEPLOY_URL = ""
+# Optional: Override the base URL for generated links
+# If not set, the worker will use the request's origin automatically
+# DEPLOY_URL = "https://your-custom-domain.com"
 
 # url to repo, displayed in the index page
 REPO = "https://github.com/SharzyL/pastebin-worker"

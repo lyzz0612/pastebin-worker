@@ -4,7 +4,7 @@
 declare namespace Cloudflare {
 	interface Env {
 		PB: KVNamespace;
-		DEPLOY_URL: string;
+		DEPLOY_URL?: string; // Optional: Override base URL for generated links
 		REPO: string;
 		INDEX_PAGE_TITLE: string;
 		TOS_MAINTAINER: string;

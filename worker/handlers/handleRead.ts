@@ -76,7 +76,7 @@ async function handleStaticPages(request: Request, env: Env, _: ExecutionContext
     }
   }
 
-  const staticPageContent = getDocPage(url.pathname, env)
+  const staticPageContent = getDocPage(url.pathname, env, url)
   if (staticPageContent) {
     // access to all static pages requires auth
     const authResponse = verifyAuth(request, env)
