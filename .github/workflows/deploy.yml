@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - goshujin
+  workflow_dispatch: # 支持手动触发
 
 jobs:
   deploy:
