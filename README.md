@@ -29,6 +29,86 @@ This is a pastebin that can be deployed on Cloudflare workers. Try it on [shz.al
 
 You are free to deploy the pastebin on your own domain if you host your domain on Cloudflare.
 
+### Option 1: GitHub Actions 自动部署 (推荐)
+
+使用 GitHub Actions 可以自动配置 KV 命名空间和 R2 存储桶，无需手动在 Cloudflare 后台操作。
+
+#### 步骤 1: Fork 仓库
+
+Fork 本仓库到你的 GitHub 账户。
+
+#### 步骤 2: 创建 Cloudflare API Token
+
+1. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/)
+2. 点击右上角头像 → **My Profile** → **API Tokens**
+3. 点击 **Create Token**
+4. 选择 **Create Custom Token**，配置以下权限：
+   - **Account** > **Workers KV Storage** > **Edit**
+   - **Account** > **Workers R2 Storage** > **Edit** (如果需要大文件支持)
+   - **Account** > **Workers Scripts** > **Edit**
+   - **Zone** > **Workers Routes** > **Edit**
+5. 复制生成的 Token
+
+#### 步骤 3: 获取 Account ID
+
+1. 在 Cloudflare Dashboard 首页，点击任意域名
+2. 在右侧边栏找到 **Account ID**，复制它
+
+#### 步骤 4: 配置 GitHub Secrets
+
+在你 Fork 的仓库中：
+
+1. 进入 **Settings** → **Secrets and variables** → **Actions**
+2. 点击 **New repository secret**，添加以下 Secrets：
+
+| Secret 名称 | 说明 |
+|------------|------|
+| `CF_API_TOKEN` | Cloudflare API Token (步骤 2 创建的) |
+| `CF_ACCOUNT_ID` | Cloudflare Account ID (步骤 3 获取的) |
+
+#### 步骤 5: 修改配置
+
+编辑 `wrangler.toml` 文件，修改以下配置：
+
+```toml
+# 修改为你的域名
+[[routes]]
+pattern = "your-domain.com"
+custom_domain = true
+
+[vars]
+# 修改为你的部署 URL
+DEPLOY_URL = "https://your-domain.com"
+
+# 其他可选配置...
+```
+
+#### 步骤 6: 触发部署
+
+- **自动部署**: 推送代码到 `goshujin` 分支会自动触发部署
+- **手动部署**: 在 GitHub 仓库页面，进入 **Actions** → **Test and Deploy** → **Run workflow**
+
+手动部署时可以配置以下选项：
+- `r2_bucket_name`: 自定义 R2 存储桶名称 (留空使用默认值 `pb-storage`)
+- `deploy_url`: 自定义部署 URL
+- `skip_r2`: 跳过 R2 配置，仅使用 KV 存储
+
+#### 自动配置说明
+
+部署工作流会自动：
+1. ✅ 检查并创建 KV 命名空间
+2. ✅ 检查并创建 R2 存储桶 (如果可用)
+3. ✅ 更新 `wrangler.toml` 中的绑定配置
+4. ✅ 部署 Worker
+
+如果 R2 不可用（账户未启用或权限不足），会自动禁用 R2 功能，大文件上传将受到 `R2_THRESHOLD` 限制（默认 100KB）。
+
+---
+
+### Option 2: 手动部署
+
+如果你更喜欢手动控制部署过程：
+
 1. Install `node` and `yarn`.
 
 2. Create a KV namespace on Cloudflare workers dashboard, remember its ID. Optionally, create an R2 bucket if you want to support large file uploads (files larger than 100KB by default).

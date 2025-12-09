@@ -29,14 +29,14 @@ custom_domain = true
 
 [[kv_namespaces]]
 binding = "PB"  # do not touch this
-id = ""  # id of your KV namespace
+id = ""  # id of your KV namespace (auto-configured by deploy workflow)
 
 # Optional: R2 bucket for large file storage
-# If you don't have R2, comment out the following lines
-# Files larger than R2_THRESHOLD will be rejected without R2
+# This section will be auto-configured by the deploy workflow
+# If R2 is not available, large file uploads will be limited to R2_THRESHOLD
 # [[r2_buckets]]
 # binding = "R2"  # do not touch this
-# bucket_name = "pb-shz-al"  # bucket name of your R2 bucket
+# bucket_name = "pb-storage"  # bucket name of your R2 bucket (auto-configured)
 
 [vars]
 # must be consistent with your routes

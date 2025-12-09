@@ -7,6 +7,7 @@
   "type": "module",
   "scripts": {
     "deploy": "wrangler deploy",
+    "setup:cf": "node scripts/setup-cloudflare.js",
     "build:frontend": "vite build frontend --outDir ../dist/frontend --emptyOutDir",
     "build:frontend:dev": "vite build frontend --mode development --outDir ../dist/frontend --emptyOutDir",
     "dev:frontend": "vite serve frontend --mode development",
