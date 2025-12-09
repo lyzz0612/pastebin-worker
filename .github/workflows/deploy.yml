@@ -40,15 +40,6 @@ jobs:
       - name: "Setup"
         run: yarn install
 
-      - name: "Build Frontend"
-        run: yarn build:frontend
-
-      - name: "Test"
-        run: |
-          yarn fmt
-          yarn lint
-          yarn test
-
       - name: "Setup Cloudflare Resources"
         id: setup-cf
         env:
@@ -77,6 +68,18 @@ jobs:
           echo "::group::当前 wrangler.toml 配置"
           cat wrangler.toml
           echo "::endgroup::"
+
+      - name: "Build Frontend"
+        run: yarn build:frontend
+
+      - name: "Test"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          yarn fmt
+          yarn lint
+          yarn test
 
       - name: "Deploy"
         env:
