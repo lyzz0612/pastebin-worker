@@ -1,6 +1,6 @@
 import React from "react"
 
-import { Card, CardBody, CardHeader, CardProps, CircularProgress, Divider, Input, mergeClasses } from "@heroui/react"
+import { Card, CardBody, CardHeader, CardProps, CircularProgress, Divider, Input, Link, mergeClasses } from "@heroui/react"
 
 import type { PasteResponse } from "../../shared/interfaces.js"
 import { tst } from "../utils/overrides.js"
@@ -63,24 +63,37 @@ export function UploadedPanel({
         ) : (
           pasteResponse && (
             <>
-              <Input
-                {...inputProps}
-                label={"Display URL"}
-                color={encryptionKey ? "success" : "default"}
-                value={displayUrl}
-                endContent={
+              <div className="mb-2">
+                <label className="text-small text-foreground-500">Display URL</label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Link
+                    href={displayUrl}
+                    isExternal
+                    showAnchorIcon
+                    className={`${tst} text-small break-all ${encryptionKey ? "text-success" : ""}`}
+                  >
+                    {displayUrl}
+                  </Link>
                   <CopyWidget
                     className={copyWidgetClassNames}
                     getCopyContent={() => displayUrl}
                   />
-                }
-              />
-              <Input
-                {...inputProps}
-                label={"Raw URL"}
-                value={pasteResponse.url}
-                endContent={<CopyWidget className={copyWidgetClassNames} getCopyContent={() => pasteResponse.url} />}
-              />
+                </div>
+              </div>
+              <div className="mb-2">
+                <label className="text-small text-foreground-500">Raw URL</label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Link
+                    href={pasteResponse.url}
+                    isExternal
+                    showAnchorIcon
+                    className={`${tst} text-small break-all`}
+                  >
+                    {pasteResponse.url}
+                  </Link>
+                  <CopyWidget className={copyWidgetClassNames} getCopyContent={() => pasteResponse.url} />
+                </div>
+              </div>
               <Input {...inputProps} label={"Expiration"} value={new Date(pasteResponse.expireAt).toLocaleString()} />
               <p className="text-small text-success-600 mt-2">
                 ✓ Uploaded successfully!
