@@ -18,6 +18,7 @@ export type MetaResponse = {
   filename?: string
   highlightLanguage?: string
   encryptionScheme?: string
+  hasPassword?: boolean
 }
 
 export type MPUCreateResponse = {

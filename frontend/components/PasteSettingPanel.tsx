@@ -47,7 +47,7 @@ export function PanelSettingsPanel({ setting, onSettingChange, ...rest }: PasteS
             // to avoid duplicated name, see https://github.com/adobe/react-spectrum/discussions/8037
             aria-labelledby=""
             classNames={{
-              base: "basis-80",
+              base: "basis-48",
               ...inputOverrides,
             }}
             defaultValue="7d"
@@ -58,27 +58,16 @@ export function PanelSettingsPanel({ setting, onSettingChange, ...rest }: PasteS
             errorMessage={verifyExpiration(setting.expiration)[1]}
             description={verifyExpiration(setting.expiration)[1]}
           />
-          <div className="flex flex-col gap-2">
-            <Switch
-              classNames={switchOverrides}
-              isSelected={setting.usePassword}
-              onValueChange={(v) => onSettingChange({ ...setting, usePassword: v, password: v ? setting.password : "" })}
-              size="sm"
-            >
-              Set password
-            </Switch>
-            {setting.usePassword && (
-              <Input
-                type="password"
-                aria-labelledby=""
-                value={setting.password}
-                onValueChange={(p) => onSettingChange({ ...setting, password: p })}
-                classNames={inputOverrides}
-                placeholder={"Enter password"}
-                description="Used to update/delete your paste"
-              />
-            )}
-          </div>
+          <Input
+            type="password"
+            label="Password"
+            aria-labelledby=""
+            value={setting.password}
+            onValueChange={(p) => onSettingChange({ ...setting, usePassword: p.length > 0, password: p })}
+            classNames={inputOverrides}
+            placeholder={setting.usePassword ? "Enter password" : "Optional"}
+            description={setting.usePassword ? "Used to update/delete" : "Leave empty for no password"}
+          />
         </div>
         <RadioGroup
           className="gap-4 mb-3 w-full"

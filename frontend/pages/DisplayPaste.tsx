@@ -15,7 +15,7 @@ import { formatSize, APIUrl, verifyExpiration, maxExpirationReadable } from "../
 import { tst, inputOverrides } from "../utils/overrides.js"
 import { highlightHTML, useHLJS } from "../utils/HighlightLoader.js"
 import { uploadNormal, UploadOptions } from "../../shared/uploadPaste.js"
-import type { PasteResponse } from "../../shared/interfaces.js"
+import type { MetaResponse } from "../../shared/interfaces.js"
 
 import "../style.css"
 import "../styles/highlight-theme-light.css"
@@ -43,7 +43,8 @@ export function DisplayPaste() {
   const [editLang, setEditLang] = useState<string | undefined>(undefined)
   const [editFilename, setEditFilename] = useState<string | undefined>(undefined)
   const [editExpiration, setEditExpiration] = useState(DEFAULT_EXPIRATION)
-  const [managePassword, setManagePassword] = useState<string | undefined>(undefined)
+  const [urlPassword, setUrlPassword] = useState<string | undefined>(undefined)
+  const [pasteHasPassword, setPasteHasPassword] = useState<boolean | undefined>(undefined)
   const [isActionPending, startAction] = useTransition()
 
   const { ErrorModal, showModal, handleFailedResp } = useErrorModal()
@@ -59,21 +60,30 @@ export function DisplayPaste() {
   // const url = new URL("http://localhost:8787/GQbf")
   const url = new URL(location.toString())
 
-  const { name, password: urlPassword, ext, filename } = parsePath(url.pathname)
+  const { name, password: parsedPassword, ext, filename } = parsePath(url.pathname)
 
   // Extract password from URL if present (format: /d/name:password)
   useEffect(() => {
-    if (urlPassword) {
-      setManagePassword(urlPassword)
+    if (parsedPassword) {
+      setUrlPassword(parsedPassword)
     }
-  }, [urlPassword])
+  }, [parsedPassword])
 
   useEffect(() => {
     const pasteUrl = `${APIUrl}/${name}`
+    const metaUrl = `${APIUrl}/m/${name}`
 
     const fetchPaste = async () => {
       try {
         setIsLoading(true)
+
+        // Fetch metadata first to check if paste has password
+        const metaResp = await fetch(metaUrl)
+        if (metaResp.ok) {
+          const meta: MetaResponse = await metaResp.json()
+          setPasteHasPassword(meta.hasPassword ?? false)
+        }
+
         const resp = await fetch(pasteUrl)
         if (!resp.ok) {
           await handleFailedResp("Failed to Fetch Paste", resp)
@@ -111,11 +121,11 @@ export function DisplayPaste() {
           try {
             key = await decodeKey(scheme, keyString)
           } catch {
-            showModal("Error", `Failed to parse “${keyString}” as ${scheme} key`)
+            showModal("Error", `Failed to parse "${keyString}" as ${scheme} key`)
             return
           }
           if (key === undefined) {
-            showModal("Error", `Failed to parse “${keyString}” as ${scheme} key`)
+            showModal("Error", `Failed to parse "${keyString}" as ${scheme} key`)
             return
           }
 
@@ -160,16 +170,27 @@ export function DisplayPaste() {
     setEditContent("")
   }
 
+  // Get manage URL based on whether paste has password
+  function getManageUrl(): string {
+    if (pasteHasPassword && urlPassword) {
+      return `${APIUrl}/${name}:${urlPassword}`
+    } else if (!pasteHasPassword) {
+      // No password set, use empty password
+      return `${APIUrl}/${name}:`
+    }
+    return ""
+  }
+
   // Update paste
   function onUpdatePaste() {
-    if (!managePassword) {
+    const manageUrl = getManageUrl()
+    if (!manageUrl) {
       showModal("Error", "No manage password available. Cannot update paste.")
       return
     }
 
     startAction(async () => {
       try {
-        const manageUrl = `${APIUrl}/${name}:${managePassword}`
         const options: UploadOptions = {
           content: new File([editContent], editFilename || ""),
           isUpdate: true,
@@ -195,7 +216,8 @@ export function DisplayPaste() {
 
   // Delete paste
   function onDeletePaste() {
-    if (!managePassword) {
+    const manageUrl = getManageUrl()
+    if (!manageUrl) {
       showModal("Error", "No manage password available. Cannot delete paste.")
       return
     }
@@ -206,7 +228,6 @@ export function DisplayPaste() {
 
     startAction(async () => {
       try {
-        const manageUrl = `${APIUrl}/${name}:${managePassword}`
         const resp = await fetch(manageUrl, { method: "DELETE" })
         if (resp.ok) {
           showModal("Deleted Successfully", "Paste has been deleted. Redirecting to home...")
@@ -237,8 +258,17 @@ export function DisplayPaste() {
   const lineNumOffset = `${Math.floor(Math.log10(pasteLineCount)) + 3}ch`
   const buttonClasses = `rounded-full bg-background hover:bg-default-100 ${tst}`
 
-  // Check if user can edit (has manage password and content is text)
-  const canEdit = managePassword && showFileContent && !isFileBinary && isDecrypted !== "encrypted"
+  // Check if user can edit (content is text and not encrypted)
+  const canEdit = showFileContent && !isFileBinary && isDecrypted !== "encrypted"
+
+  // Determine if user has manage access:
+  // 1. If paste has no password -> always has access
+  // 2. If paste has password and URL has password -> has access
+  // 3. If paste has password but URL has no password -> no access
+  const hasManageAccess = pasteHasPassword === false || (pasteHasPassword === true && !!urlPassword)
+
+  // Show buttons only when we know the password status
+  const showManageButtons = pasteHasPassword !== undefined && hasManageAccess
 
   return (
     <main
@@ -273,14 +303,19 @@ export function DisplayPaste() {
               </Button>
             </Tooltip>
           )}
-          {!isEditMode && canEdit && (
+          {!isEditMode && canEdit && showManageButtons && (
             <Tooltip content="Edit paste">
-              <Button aria-label="Edit" isIconOnly className={buttonClasses} onPress={onEnterEditMode}>
+              <Button
+                aria-label="Edit"
+                isIconOnly
+                className={buttonClasses}
+                onPress={onEnterEditMode}
+              >
                 <EditIcon className="size-6" />
               </Button>
             </Tooltip>
           )}
-          {!isEditMode && managePassword && (
+          {!isEditMode && showManageButtons && (
             <Tooltip content="Delete paste">
               <Button
                 aria-label="Delete"

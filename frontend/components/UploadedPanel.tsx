@@ -11,16 +11,20 @@ interface UploadedPanelProps extends CardProps {
   loadingProgress?: number
   pasteResponse?: PasteResponse
   encryptionKey?: string
+  hasPassword?: boolean
 }
 
-const makeDecryptionUrl = (url: string, key?: string) => {
-  const urlParsed = new URL(url)
+// Build display URL: /d/name or /d/name:password with optional encryption key hash
+const makeDisplayUrl = (url: string, manageUrl: string, hasPassword: boolean, encryptionKey?: string) => {
+  // If has password, use manageUrl which contains name:password
+  // Otherwise use url which contains just name
+  const baseUrl = hasPassword ? manageUrl : url
+  const urlParsed = new URL(baseUrl)
   urlParsed.pathname = "/d" + urlParsed.pathname
-  if (key) {
-    return urlParsed.toString() + "#" + key
-  } else {
-    return urlParsed.toString()
+  if (encryptionKey) {
+    return urlParsed.toString() + "#" + encryptionKey
   }
+  return urlParsed.toString()
 }
 
 export function UploadedPanel({
@@ -29,6 +33,7 @@ export function UploadedPanel({
   pasteResponse,
   className,
   encryptionKey,
+  hasPassword = false,
   ...rest
 }: UploadedPanelProps) {
   const copyWidgetClassNames = `bg-transparent ${tst} translate-y-[10%]`
@@ -37,6 +42,10 @@ export function UploadedPanel({
     readOnly: true,
     className: "mb-2",
   }
+
+  const displayUrl = pasteResponse
+    ? makeDisplayUrl(pasteResponse.url, pasteResponse.manageUrl, hasPassword, encryptionKey)
+    : ""
 
   return (
     <Card classNames={mergeClasses({ base: tst }, { base: className })} {...rest}>
@@ -58,11 +67,11 @@ export function UploadedPanel({
                 {...inputProps}
                 label={"Display URL"}
                 color={encryptionKey ? "success" : "default"}
-                value={makeDecryptionUrl(pasteResponse.url, encryptionKey)}
+                value={displayUrl}
                 endContent={
                   <CopyWidget
                     className={copyWidgetClassNames}
-                    getCopyContent={() => makeDecryptionUrl(pasteResponse.url, encryptionKey)}
+                    getCopyContent={() => displayUrl}
                   />
                 }
               />
@@ -71,14 +80,6 @@ export function UploadedPanel({
                 label={"Raw URL"}
                 value={pasteResponse.url}
                 endContent={<CopyWidget className={copyWidgetClassNames} getCopyContent={() => pasteResponse.url} />}
-              />
-              <Input
-                {...inputProps}
-                label={"Manage URL"}
-                value={pasteResponse.manageUrl}
-                endContent={
-                  <CopyWidget className={copyWidgetClassNames} getCopyContent={() => pasteResponse.manageUrl} />
-                }
               />
               <Input {...inputProps} label={"Expiration"} value={new Date(pasteResponse.expireAt).toLocaleString()} />
               <p className="text-small text-success-600 mt-2">

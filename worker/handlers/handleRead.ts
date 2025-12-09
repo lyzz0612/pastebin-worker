@@ -190,6 +190,7 @@ export async function handleGet(request: Request, env: Env, ctx: ExecutionContex
       filename: item.metadata.filename,
       highlightLanguage: item.metadata.highlightLanguage,
       encryptionScheme: item.metadata.encryptionScheme,
+      hasPassword: item.metadata.passwd.length > 0,
     }
     return new Response(isHead ? null : JSON.stringify(returnedMetadata, null, 2), {
       headers: {

@@ -40,6 +40,7 @@ export function PasteBin() {
 
   const [pasteResponse, setPasteResponse] = useState<PasteResponse | undefined>(undefined)
   const [uploadedEncryptionKey, setUploadedEncryptionKey] = useState<string | undefined>(undefined)
+  const [uploadedWithPassword, setUploadedWithPassword] = useState(false)
 
   const [isUploadPending, startUpload] = useTransition()
   const [loadingProgress, setLoadingProgress] = useState<number | undefined>(undefined)
@@ -58,6 +59,7 @@ export function PasteBin() {
           setLoadingProgress
         )
         setPasteResponse(uploaded)
+        setUploadedWithPassword(pasteSetting.usePassword)
       } catch (e) {
         handleError("Error on Uploading Paste", e as Error)
       }
@@ -158,6 +160,7 @@ export function PasteBin() {
               loadingProgress={loadingProgress}
               pasteResponse={pasteResponse}
               encryptionKey={uploadedEncryptionKey}
+              hasPassword={uploadedWithPassword}
               className="w-full lg:w-1/2"
             />
           )}
