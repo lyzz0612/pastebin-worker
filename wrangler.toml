@@ -1,7 +1,8 @@
 name = "pb"
 compatibility_date = "2025-04-24"
 
-workers_dev = false
+# Set to true to use *.workers.dev domain, false if using custom domain
+workers_dev = true
 main = "worker/index.ts"
 
 [[rules]]
@@ -22,10 +23,11 @@ crons = ["0 0 * * *"]
 # lines below are what you should modify
 #----------------------------------------
 
-[[routes]]
-# Refer to https://developers.cloudflare.com/workers/wrangler/configuration/#routes
-pattern = "skyup.top"
-custom_domain = true
+# Optional: Custom domain configuration
+# Uncomment and modify if you want to use a custom domain instead of *.workers.dev
+# [[routes]]
+# pattern = "your-domain.com"
+# custom_domain = true
 
 [[kv_namespaces]]
 binding = "PB"  # do not touch this
@@ -39,8 +41,10 @@ id = ""  # id of your KV namespace (auto-configured by deploy workflow)
 # bucket_name = "pb-storage"  # bucket name of your R2 bucket (auto-configured)
 
 [vars]
-# must be consistent with your routes
-DEPLOY_URL = "https://share.skyup.top"
+# The URL where your worker is deployed
+# If using workers.dev, it will be: https://<worker-name>.<account-subdomain>.workers.dev
+# This will be auto-configured by deploy workflow if not set
+DEPLOY_URL = ""
 
 # url to repo, displayed in the index page
 REPO = "https://github.com/SharzyL/pastebin-worker"

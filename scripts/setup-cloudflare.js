@@ -26,6 +26,7 @@ const CONFIG = {
   outputFile: process.env.GITHUB_OUTPUT || null,
   deployUrl: process.env.DEPLOY_URL || null,
   skipR2: !process.env.R2_BUCKET_NAME || process.env.SKIP_R2 === "true",
+  accountId: process.env.CLOUDFLARE_ACCOUNT_ID || null,
 }
 
 // 颜色输出
@@ -236,6 +237,23 @@ function setupR2Bucket() {
   return { enabled: false, bucketName: "" }
 }
 
+// 获取 workers.dev 子域名
+function getWorkersDevSubdomain() {
+  const result = runWrangler(["whoami"])
+  if (!result.success) {
+    return null
+  }
+
+  // 尝试从 whoami 输出中提取子域名
+  // 格式可能包含: "subdomain.workers.dev" 或账户信息
+  const subdomainMatch = result.stdout.match(/([a-z0-9-]+)\.workers\.dev/i)
+  if (subdomainMatch) {
+    return subdomainMatch[1]
+  }
+
+  return null
+}
+
 // 更新 wrangler.toml 配置
 function updateWranglerConfig(kvId, r2Config) {
   const configPath = resolve(process.cwd(), "wrangler.toml")
@@ -284,9 +302,26 @@ bucket_name = "${r2Config.bucketName}"
     content = content.replace(/^(bucket_name = )/gm, "# $1")
   }
 
-  // 如果提供了 DEPLOY_URL，更新它
+  // 处理 DEPLOY_URL
+  // 检查当前 DEPLOY_URL 是否为空
+  const currentDeployUrl = content.match(/DEPLOY_URL\s*=\s*"([^"]*)"/)?.[1]
+
   if (CONFIG.deployUrl) {
+    // 如果明确提供了 DEPLOY_URL，使用它
     content = content.replace(/(DEPLOY_URL\s*=\s*)"[^"]*"/, `$1"${CONFIG.deployUrl}"`)
+    log("info", `DEPLOY_URL 设置为: ${CONFIG.deployUrl}`)
+  } else if (!currentDeployUrl) {
+    // 如果当前为空，尝试自动生成 workers.dev URL
+    const subdomain = getWorkersDevSubdomain()
+    if (subdomain) {
+      const autoUrl = `https://${CONFIG.workerName}.${subdomain}.workers.dev`
+      content = content.replace(/(DEPLOY_URL\s*=\s*)"[^"]*"/, `$1"${autoUrl}"`)
+      log("info", `DEPLOY_URL 自动设置为: ${autoUrl}`)
+      writeOutput("deploy_url", autoUrl)
+    } else {
+      log("warn", "无法自动获取 workers.dev 子域名，DEPLOY_URL 保持为空")
+      log("warn", "部署后请手动更新 DEPLOY_URL 或在下次部署时通过参数指定")
+    }
   }
 
   writeFileSync(configPath, content)

@@ -66,21 +66,26 @@ Fork 本仓库到你的 GitHub 账户。
 | `CF_API_TOKEN` | Cloudflare API Token (步骤 2 创建的) |
 | `CF_ACCOUNT_ID` | Cloudflare Account ID (步骤 3 获取的) |
 
-#### 步骤 5: 修改配置
+#### 步骤 5: 修改配置 (可选)
 
-编辑 `wrangler.toml` 文件，修改以下配置：
+默认配置会使用 Cloudflare 自动分配的 `*.workers.dev` 域名，无需额外配置即可部署。
+
+如果你需要自定义域名，编辑 `wrangler.toml` 文件：
 
 ```toml
-# 修改为你的域名
-[[routes]]
-pattern = "your-domain.com"
-custom_domain = true
+# 使用 workers.dev 域名 (默认)
+workers_dev = true
+
+# 或者使用自定义域名：
+# workers_dev = false
+# [[routes]]
+# pattern = "your-domain.com"
+# custom_domain = true
 
 [vars]
-# 修改为你的部署 URL
-DEPLOY_URL = "https://your-domain.com"
-
-# 其他可选配置...
+# 如果使用 workers.dev，留空即可，会自动配置
+# 如果使用自定义域名，填写你的域名
+DEPLOY_URL = ""
 ```
 
 #### 步骤 6: 触发部署
