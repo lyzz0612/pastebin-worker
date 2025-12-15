@@ -1,5 +1,5 @@
 import { NAME_REGEX, PASSWD_SEP } from "../../shared/constants.js"
-import { parseExpiration, parseExpirationReadable } from "../../shared/parsers.js"
+import { parseExpiration, parseExpirationReadable, PERMANENT_EXPIRATION } from "../../shared/parsers.js"
 
 // 直接使用当前网址作为 BaseUrl 和 APIUrl
 export const BaseUrl = typeof window !== "undefined" ? window.location.origin : ""
@@ -35,7 +35,9 @@ export function verifyExpiration(expiration: string): [boolean, string] {
   if (parsed === null) {
     return [false, "Invalid expiration"]
   } else {
-    if (parsed > maxExpirationSeconds) {
+    if (parsed >= PERMANENT_EXPIRATION) {
+      return [true, "Never expires (permanent)"]
+    } else if (parsed > maxExpirationSeconds) {
       return [false, `Exceed max expiration (${maxExpirationReadable})`]
     } else {
       return [true, `Expires in ${parseExpirationReadable(expiration)!}`]

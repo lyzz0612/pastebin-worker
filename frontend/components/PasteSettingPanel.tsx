@@ -87,7 +87,7 @@ export function PanelSettingsPanel({ setting, onSettingChange, ...rest }: PasteS
           >
             Generate a long random URL
           </Radio>
-          <Radio value="custom" classNames={radioClassNames} description={`Example: ${BaseUrl}/~stocking`}>
+          <Radio value="custom" classNames={radioClassNames} description={`Example: ${BaseUrl}/stocking`}>
             Set by your own
           </Radio>
           {setting.uploadKind === "custom" ? (
@@ -100,7 +100,7 @@ export function PanelSettingsPanel({ setting, onSettingChange, ...rest }: PasteS
               errorMessage={verifyName(setting.name)[1]}
               startContent={
                 <div className="pointer-events-none flex items-center">
-                  <span className="text-default-500 text-small w-max">{`${BaseUrl}/~`}</span>
+                  <span className="text-default-500 text-small w-max">{`${BaseUrl}/`}</span>
                 </div>
               }
             />

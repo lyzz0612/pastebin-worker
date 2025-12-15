@@ -15,8 +15,17 @@ export function parseSize(sizeStr: string): number | null {
   return sizeBytes
 }
 
+// Special value representing permanent/never expires (100 years in seconds)
+export const PERMANENT_EXPIRATION = 100 * 365 * 24 * 3600
+
 export function parseExpiration(expirationStr: string): number | null {
-  expirationStr = expirationStr.trim()
+  expirationStr = expirationStr.trim().toLowerCase()
+
+  // Check for permanent/never expire keywords
+  if (expirationStr === "permanent" || expirationStr === "never" || expirationStr === "forever" || expirationStr === "0") {
+    return PERMANENT_EXPIRATION
+  }
+
   const EXPIRE_REGEX = /^[\d.]+\s*[smhd]?$/
   if (!EXPIRE_REGEX.test(expirationStr)) {
     return null
@@ -35,7 +44,13 @@ export function parseExpiration(expirationStr: string): number | null {
 }
 
 export function parseExpirationReadable(expirationStr: string): string | null {
-  expirationStr = expirationStr.trim()
+  expirationStr = expirationStr.trim().toLowerCase()
+
+  // Check for permanent/never expire keywords
+  if (expirationStr === "permanent" || expirationStr === "never" || expirationStr === "forever" || expirationStr === "0") {
+    return "permanent"
+  }
+
   const EXPIRE_REGEX = /^[\d.]+\s*[smhd]?$/
   if (!EXPIRE_REGEX.test(expirationStr)) {
     return null

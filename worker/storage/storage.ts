@@ -1,5 +1,5 @@
 import { dateToUnix, workerAssert, WorkerError } from "../common.js"
-import { parseSize } from "../../shared/parsers.js"
+import { parseSize, PERMANENT_EXPIRATION } from "../../shared/parsers.js"
 import { PasteLocation } from "../../shared/interfaces.js"
 
 // Helper function to check if R2 is available
@@ -79,9 +79,10 @@ async function updateAccessCounter(env: Env, short: string, value: ArrayBuffer, 
   if (Math.random() < 0.01) {
     metadata.accessCounter += 1
     try {
+      // willExpireAtUnix === 0 means permanent (never expires)
       await env.PB.put(short, value, {
         metadata: metadata,
-        expiration: metadata.willExpireAtUnix,
+        ...(metadata.willExpireAtUnix !== 0 && { expiration: metadata.willExpireAtUnix }),
       })
     } catch (e) {
       // ignore rate limit message
@@ -102,7 +103,8 @@ export async function getPaste(env: Env, short: string, ctx: ExecutionContext): 
   } else {
     workerAssert(item.metadata != null, `paste of name '${short}' has no metadata`)
     const metadata = migratePasteMetadata(item.metadata)
-    const expired = metadata.willExpireAtUnix < new Date().getTime() / 1000
+    // willExpireAtUnix === 0 means permanent (never expires)
+    const expired = metadata.willExpireAtUnix !== 0 && metadata.willExpireAtUnix < new Date().getTime() / 1000
 
     ctx.waitUntil(
       (async () => {
@@ -144,7 +146,8 @@ export async function getPasteMetadata(env: Env, short: string): Promise<PasteMe
   } else if (item.metadata === null) {
     throw new WorkerError(500, `paste of name '${short}' has no metadata`)
   } else {
-    if (item.metadata.willExpireAtUnix < new Date().getTime() / 1000) {
+    // willExpireAtUnix === 0 means permanent (never expires)
+    if (item.metadata.willExpireAtUnix !== 0 && item.metadata.willExpireAtUnix < new Date().getTime() / 1000) {
       return null
     }
     return migratePasteMetadata(item.metadata)
@@ -169,15 +172,19 @@ export async function updatePaste(
   originalMetadata: PasteMetadata,
   options: WriteOptions,
 ) {
-  const expirationUnix = dateToUnix(options.now) + options.expirationSeconds
-  let expirationUnixSpecified =
-    dateToUnix(options.now) + Math.max(options.expirationSeconds, PASTE_EXPIRE_SPECIFIED_MIN)
+  const isPermanent = options.expirationSeconds >= PERMANENT_EXPIRATION
+  const expirationUnix = isPermanent ? 0 : dateToUnix(options.now) + options.expirationSeconds
+  let expirationUnixSpecified: number | undefined = isPermanent
+    ? undefined
+    : dateToUnix(options.now) + Math.max(options.expirationSeconds, PASTE_EXPIRE_SPECIFIED_MIN)
 
   if (originalMetadata.location === "R2") {
     if (!isR2Available(env)) {
       throw new WorkerError(500, `paste '${pasteName}' is stored in R2 but R2 is not configured`)
     }
-    expirationUnixSpecified = expirationUnixSpecified + PASTE_EXPIRE_EXTENSION_FOR_R2
+    if (expirationUnixSpecified !== undefined) {
+      expirationUnixSpecified = expirationUnixSpecified + PASTE_EXPIRE_EXTENSION_FOR_R2
+    }
 
     if (!options.isMPUComplete) {
       await env.R2.put(pasteName, content)
@@ -215,7 +222,7 @@ export async function updatePaste(
 
   await env.PB.put(pasteName, originalMetadata.location === "R2" ? "" : content, {
     metadata: metadata,
-    expiration: expirationUnixSpecified,
+    ...(expirationUnixSpecified !== undefined && { expiration: expirationUnixSpecified }),
   })
 }
 
@@ -225,10 +232,12 @@ export async function createPaste(
   content: ArrayBuffer | ReadableStream,
   options: WriteOptions,
 ) {
-  const expirationUnix = dateToUnix(options.now) + options.expirationSeconds
+  const isPermanent = options.expirationSeconds >= PERMANENT_EXPIRATION
+  const expirationUnix = isPermanent ? 0 : dateToUnix(options.now) + options.expirationSeconds
 
-  let expirationUnixSpecified =
-    dateToUnix(options.now) + Math.max(options.expirationSeconds, PASTE_EXPIRE_SPECIFIED_MIN)
+  let expirationUnixSpecified: number | undefined = isPermanent
+    ? undefined
+    : dateToUnix(options.now) + Math.max(options.expirationSeconds, PASTE_EXPIRE_SPECIFIED_MIN)
 
   const shouldUseR2 = options.isMPUComplete || options.contentLength > parseSize(env.R2_THRESHOLD)!
 
@@ -242,7 +251,9 @@ export async function createPaste(
 
   const location = shouldUseR2 ? "R2" : "KV"
   if (location === "R2") {
-    expirationUnixSpecified = expirationUnixSpecified + PASTE_EXPIRE_EXTENSION_FOR_R2
+    if (expirationUnixSpecified !== undefined) {
+      expirationUnixSpecified = expirationUnixSpecified + PASTE_EXPIRE_EXTENSION_FOR_R2
+    }
 
     if (!options.isMPUComplete) {
       await env.R2!.put(pasteName, content)
@@ -266,7 +277,7 @@ export async function createPaste(
 
   await env.PB.put(pasteName, location === "R2" ? "" : content, {
     metadata: metadata,
-    expiration: expirationUnixSpecified,
+    ...(expirationUnixSpecified !== undefined && { expiration: expirationUnixSpecified }),
   })
 }
 
@@ -277,6 +288,10 @@ export async function pasteNameAvailable(env: Env, pasteName: string): Promise<b
   } else if (item.metadata === null) {
     throw new WorkerError(500, `paste of name '${pasteName}' has no metadata`)
   } else {
+    // willExpireAtUnix === 0 means permanent (never expires), so name is not available
+    if (item.metadata.willExpireAtUnix === 0) {
+      return false
+    }
     return item.metadata.willExpireAtUnix < new Date().getTime() / 1000
   }
 }
@@ -323,7 +338,8 @@ export async function cleanExpiredInR2(env: Env, controller: ScheduledController
     for (const key of listed.keys) {
       if (key.metadata !== undefined) {
         const metadata = migratePasteMetadata(key.metadata)
-        if (metadata.location === "R2" && metadata.willExpireAtUnix < nowUnix) {
+        // Skip permanent pastes (willExpireAtUnix === 0)
+        if (metadata.location === "R2" && metadata.willExpireAtUnix !== 0 && metadata.willExpireAtUnix < nowUnix) {
           r2NamesToClean.push(key.name)
 
           if (r2NamesToClean.length === 1000) {

@@ -94,7 +94,7 @@ export function UploadedPanel({
                   <CopyWidget className={copyWidgetClassNames} getCopyContent={() => pasteResponse.url} />
                 </div>
               </div>
-              <Input {...inputProps} label={"Expiration"} value={new Date(pasteResponse.expireAt).toLocaleString()} />
+              <Input {...inputProps} label={"Expiration"} value={pasteResponse.isPermanent ? "Never (permanent)" : new Date(pasteResponse.expireAt).toLocaleString()} />
               <p className="text-small text-success-600 mt-2">
                 ✓ Uploaded successfully!
               </p>

@@ -64,7 +64,7 @@ describe("uploadMPU with variant parameters", () => {
       expire: "100",
     })
     expect(uploadResp.expirationSeconds).toStrictEqual(100)
-    expect(uploadResp.url.includes("/~foobarfoobar")).toStrictEqual(true)
+    expect(uploadResp.url.includes("/foobarfoobar")).toStrictEqual(true)
   })
 
   it("handles long paste name", async () => {

@@ -10,7 +10,7 @@ import {
   MIN_PASSWD_LEN,
   MAX_PASSWD_LEN,
 } from "../../shared/constants.js"
-import { parsePath, parseSize, parseExpiration } from "../../shared/parsers.js"
+import { parsePath, parseSize, parseExpiration, PERMANENT_EXPIRATION } from "../../shared/parsers.js"
 import { PasteResponse } from "../../shared/interfaces.js"
 import { MaxFileSizeExceededError, MultipartParseError, parseMultipartRequest } from "@mjackson/multipart-parser"
 import { handleMPUComplete, handleMPUCreate, handleMPUCreateUpdate, handleMPUResume } from "./handleMPU.js"
@@ -213,12 +213,14 @@ export async function handlePostOrPut(
       encryptionScheme,
       isMPUComplete,
     })
+    const isPermanent = expirationSeconds >= PERMANENT_EXPIRATION
     return makeResponse(
       {
         url: accessUrl(pasteName),
         manageUrl: manageUrl(pasteName, newPasswd),
-        expirationSeconds,
-        expireAt: new Date(now.getTime() + 1000 * expirationSeconds).toISOString(),
+        expirationSeconds: isPermanent ? 0 : expirationSeconds,
+        expireAt: isPermanent ? "never" : new Date(now.getTime() + 1000 * expirationSeconds).toISOString(),
+        isPermanent,
       },
       { etag: r2Object?.httpEtag },
     )
@@ -231,7 +233,7 @@ export async function handlePostOrPut(
         throw new WorkerError(400, `no name for MPU complete`)
       }
     } else if (nameFromForm !== undefined) {
-      pasteName = "~" + nameFromForm
+      pasteName = nameFromForm
       if (!(await pasteNameAvailable(env, pasteName))) {
         throw new WorkerError(409, `name '${pasteName}' is already used`)
       }
@@ -254,12 +256,14 @@ export async function handlePostOrPut(
       isMPUComplete,
     })
 
+    const isPermanent = expirationSeconds >= PERMANENT_EXPIRATION
     return makeResponse(
       {
         url: accessUrl(pasteName),
         manageUrl: manageUrl(pasteName, password),
-        expirationSeconds,
-        expireAt: new Date(now.getTime() + 1000 * expirationSeconds).toISOString(),
+        expirationSeconds: isPermanent ? 0 : expirationSeconds,
+        expireAt: isPermanent ? "never" : new Date(now.getTime() + 1000 * expirationSeconds).toISOString(),
+        isPermanent,
       },
       { etag: r2Object?.httpEtag },
     )

@@ -33,9 +33,9 @@ Usage example:
 $ curl https://shz.al/i-p-
 https://web.archive.org/web/20210328091143/https://mp.weixin.qq.com/s/5phCQP7i-JpSvzPEMGk56Q
 
-$ curl https://shz.al/~panty.jpg | feh -
+$ curl https://shz.al/panty.jpg | feh -
 
-$ curl 'https://shz.al/~panty.jpg?mime=image/png' -w '%{content_type}' -o /dev/null -sS
+$ curl 'https://shz.al/panty.jpg?mime=image/png' -w '%{content_type}' -o /dev/null -sS
 image/png
 
 $ curl 'https://shz.al/kf7Z/panty.jpg?mime=image/png' -w '%{content_type}' -o /dev/null -sS
@@ -103,19 +103,21 @@ $ curl -L https://shz.al/m/i-p-
   "sizeBytes": 4096,
   "location": "KV",
   "filename": "a.jpg",
-  "encryptionScheme": "AES-GCM"
+  "encryptionScheme": "AES-GCM",
+  "isPermanent": false
 }
 ```
 
 Explanation of the fields:
 
 - `lastModified`: String. An ISO String representing the last modification time of the paste.
-- `expireAt`: String. An ISO String representing when the paste will expire.
-- `expireAt`: String. An ISO String representing when the paste was created.
+- `createdAt`: String. An ISO String representing when the paste was created.
+- `expireAt`: String. An ISO String representing when the paste will expire, or `"never"` for permanent pastes.
 - `sizeBytes`: Integer. The size of the content of the paste in bytes.
 - `filename`: Optional string. The file name of the paste.
 - `location`: String, either "KV" of "R2". Representing whether the paste content is stored in Cloudflare KV storage or R2 object storage.
-- `encryptionScheme`: Optional string. Currently only "AES-GCM" is possible. The encryption scheme used to encrypt the pastused to encrypt the pastused to encrypt the pastused to encrypt the paste.
+- `encryptionScheme`: Optional string. Currently only "AES-GCM" is possible. The encryption scheme used to encrypt the paste.
+- `isPermanent`: Boolean. `true` if the paste is permanent (never expires).
 
 ## GET `/a/<name>`
 
@@ -167,7 +169,7 @@ $$
 ```shell
 $ curl -Fc=@test.md -Fn=test-md https://shz.al
 
-$ firefox https://shz.al/a/~test-md
+$ firefox https://shz.al/a/test-md
 ```
 
 ## **HEAD** `/*`
@@ -180,11 +182,11 @@ Upload your paste. It accept parameters in form-data:
 
 - `c`: mandatory. The **content** of your paste, text of binary. It should be no larger than 10 MB. The `filename` in its `Content-Disposition` will be present when fetching the paste.
 
-- `e`: optional. The **expiration** time of the paste. After this period of time, the paste is permanently deleted. It should be an integer or a float point number suffixed with an optional unit (seconds by default). Supported units: `s` (seconds), `m` (minutes), `h` (hours), `d` (days). For example, `360.24` means 360.25 seconds; `25d` is interpreted as 25 days. The actual expiration might be shorter than specified expiration due to limitations imposed by the administrator. If unspecified, a default expiration time setting is used.
+- `e`: optional. The **expiration** time of the paste. After this period of time, the paste is permanently deleted. It should be an integer or a float point number suffixed with an optional unit (seconds by default). Supported units: `s` (seconds), `m` (minutes), `h` (hours), `d` (days). For example, `360.24` means 360.25 seconds; `25d` is interpreted as 25 days. Special values `permanent`, `never`, `forever`, or `0` indicate that the paste should never expire. The actual expiration might be shorter than specified expiration due to limitations imposed by the administrator. If unspecified, a default expiration time setting is used.
 
 - `s`: optional. The **password** which allows you to modify and delete the paste. If not specified, the worker will generate a random string as password.
 
-- `n`: optional. The customized **name** of your paste. If not specified, the worker will generate a random string (4 characters by default) as the name. You need to prefix the name with `~` when fetching the paste of customized name. The name is at least 3 characters long, consisting of alphabet, digits and characters in `+_-[]*$=@,;/`.
+- `n`: optional. The customized **name** of your paste. If not specified, the worker will generate a random string (4 characters by default) as the name. The name is at least 3 characters long, consisting of alphabet, digits and characters in `+_-[]*$=@,;/`.
 
 - `p`: optional. The flag of **private mode**. If specified to any value, the name of the paste is as long as 24 characters. No effect if `n` is used.
 -
@@ -199,16 +201,18 @@ Upload your paste. It accept parameters in form-data:
   "url": "https://shz.al/abcd",
   "manageUrl": "https://shz.al/abcd:w2eHqyZGc@CQzWLN=BiJiQxZ",
   "expirationSeconds": 1209600,
-  "expireAt": "2025-05-05T10:33:06.114Z"
+  "expireAt": "2025-05-05T10:33:06.114Z",
+  "isPermanent": false
 }
 ```
 
 Explanation of the fields:
 
-- `url`: String. The URL to fetch the paste. When using a customized name, it looks like `https//shz.al/~myname`.
-- `manageUrl`: String. The URL to update and delete the paste, which is `url` suffixed by `~` and the password.
-- `expirationSeconds`: String. The expiration seconds.
-- `expireAt`: String. An ISO String representing when the paste will expire.
+- `url`: String. The URL to fetch the paste. When using a customized name, it looks like `https://shz.al/myname`.
+- `manageUrl`: String. The URL to update and delete the paste, which is `url` suffixed by `:` and the password.
+- `expirationSeconds`: Integer. The expiration seconds. `0` for permanent pastes.
+- `expireAt`: String. An ISO String representing when the paste will expire, or `"never"` for permanent pastes.
+- `isPermanent`: Boolean. `true` if the paste is permanent (never expires).
 
 If error occurs, the worker returns status code different from `200`:
 
@@ -222,28 +226,40 @@ Usage example:
 ```shell
 $ curl -Fc="kawaii" -Fe=300 -Fn=hitagi https://shz.al  # uploading some text
 {
-  "url": "https://shz.al/~hitagi",
-  "manageUrl": "https://shz.al/~hitagi:22@-OJWcTOH2jprTJWYadmDv",
+  "url": "https://shz.al/hitagi",
+  "manageUrl": "https://shz.al/hitagi:22@-OJWcTOH2jprTJWYadmDv",
   "expirationSeconds": 300,
-  "expireAt": "2025-05-05T10:33:06.114Z"
+  "expireAt": "2025-05-05T10:33:06.114Z",
+  "isPermanent": false
 }
 
 $ curl -Fc=@panty.jpg -Fn=panty -Fs=12345678 https://shz.al   # uploading a file
 {
-  "url": "https://shz.al/~panty",
-  "manageUrl": "https://shz.al/~panty:12345678",
+  "url": "https://shz.al/panty",
+  "manageUrl": "https://shz.al/panty:12345678",
   "expirationSeconds": 1209600,
-  "expireAt": "2025-05-05T10:33:06.114Z"
+  "expireAt": "2025-05-05T10:33:06.114Z",
+  "isPermanent": false
+}
+
+$ curl -Fc="permanent content" -Fe=permanent -Fn=forever https://shz.al   # uploading a permanent paste
+{
+  "url": "https://shz.al/forever",
+  "manageUrl": "https://shz.al/forever:QJhMKh5WR6z36QRAAn5Q5GZh",
+  "expirationSeconds": 0,
+  "expireAt": "never",
+  "isPermanent": true
 }
 
 # because `curl` takes some characters as filed separator, the fields should be
 # quoted by double-quotes if the field contains semicolon or comma
 $ curl -Fc=@panty.jpg -Fn='"hi/hello;g,ood"' -Fs=12345678 https://shz.al
 {
-  "url": "https://shz.al/~hi/hello;g,ood",
-  "manageUrl": "https://shz.al/~hi/hello;g,ood:QJhMKh5WR6z36QRAAn5Q5GZh",
+  "url": "https://shz.al/hi/hello;g,ood",
+  "manageUrl": "https://shz.al/hi/hello;g,ood:QJhMKh5WR6z36QRAAn5Q5GZh",
   "expirationSeconds": 1209600,
-  "expireAt": "2025-05-05T10:33:06.114Z"
+  "expireAt": "2025-05-05T10:33:06.114Z",
+  "isPermanent": false
 }
 ```
 
@@ -268,20 +284,22 @@ If error occurs, the worker returns status code different from `200`:
 Usage example:
 
 ```shell
-$ curl -X PUT -Fc="kawaii~" -Fe=500 https://shz.al/~hitagi:22@-OJWcTOH2jprTJWYadmDv
+$ curl -X PUT -Fc="kawaii~" -Fe=500 https://shz.al/hitagi:22@-OJWcTOH2jprTJWYadmDv
 {
-  "url": "https://shz.al/~hitagi",
-  "manageUrl": "https://shz.al/~hitagi:22@-OJWcTOH2jprTJWYadmDv",
+  "url": "https://shz.al/hitagi",
+  "manageUrl": "https://shz.al/hitagi:22@-OJWcTOH2jprTJWYadmDv",
   "expirationSeconds": 500,
-  "expireAt": "2025-05-05T10:33:06.114Z"
+  "expireAt": "2025-05-05T10:33:06.114Z",
+  "isPermanent": false
 }
 
-$ curl -X PUT -Fc="kawaii~" https://shz.al/~hitagi:22@-OJWcTOH2jprTJWYadmDv
+$ curl -X PUT -Fc="kawaii~" https://shz.al/hitagi:22@-OJWcTOH2jprTJWYadmDv
 {
-  "url": "https://shz.al/~hitagi",
-  "manageUrl": "https://shz.al/~hitagi:22@-OJWcTOH2jprTJWYadmDv",
+  "url": "https://shz.al/hitagi",
+  "manageUrl": "https://shz.al/hitagi:22@-OJWcTOH2jprTJWYadmDv",
   "expirationSeconds": 500,
-  "expireAt": "2025-05-05T10:33:06.114Z"
+  "expireAt": "2025-05-05T10:33:06.114Z",
+  "isPermanent": false
 }
 ```
 
@@ -298,9 +316,9 @@ If error occurs, the worker returns status code different from `200`:
 Usage example:
 
 ```shell
-$ curl -X DELETE https://shz.al/~hitagi:22@-OJWcTOH2jprTJWYadmDv
+$ curl -X DELETE https://shz.al/hitagi:22@-OJWcTOH2jprTJWYadmDv
 the paste will be deleted in seconds
 
-$ curl https://shz.al/~hitagi
+$ curl https://shz.al/hitagi
 not found
 ```

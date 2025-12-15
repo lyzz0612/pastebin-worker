@@ -5,6 +5,7 @@ import {
   parseFilenameFromContentDisposition,
   parseExpiration,
   parseExpirationReadable,
+  PERMANENT_EXPIRATION,
 } from "../parsers.js"
 
 test("parsePath", () => {
@@ -64,6 +65,16 @@ test("parseExpiration", () => {
     ["10  d", 10 * 24 * 60 * 60, "10 days"],
     ["10  ", 10, "10 seconds"],
     [" 10  ", 10, "10 seconds"],
+
+    // Permanent expiration keywords
+    ["permanent", PERMANENT_EXPIRATION, "permanent"],
+    ["Permanent", PERMANENT_EXPIRATION, "permanent"],
+    ["PERMANENT", PERMANENT_EXPIRATION, "permanent"],
+    ["never", PERMANENT_EXPIRATION, "permanent"],
+    ["Never", PERMANENT_EXPIRATION, "permanent"],
+    ["forever", PERMANENT_EXPIRATION, "permanent"],
+    ["Forever", PERMANENT_EXPIRATION, "permanent"],
+    ["0", PERMANENT_EXPIRATION, "permanent"],
 
     [" 10  g", null, null],
     ["10g", null, null],

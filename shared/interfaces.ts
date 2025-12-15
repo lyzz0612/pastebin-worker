@@ -7,6 +7,7 @@ export type PasteResponse = {
   manageUrl: string
   expirationSeconds: number
   expireAt: string
+  isPermanent?: boolean
 }
 
 export type MetaResponse = {
@@ -19,6 +20,7 @@ export type MetaResponse = {
   highlightLanguage?: string
   encryptionScheme?: string
   hasPassword?: boolean
+  isPermanent?: boolean
 }
 
 export type MPUCreateResponse = {

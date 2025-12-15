@@ -181,16 +181,18 @@ export async function handleGet(request: Request, env: Env, ctx: ExecutionContex
 
   // handle metadata access
   if (role === "m") {
+    const isPermanent = item.metadata.willExpireAtUnix === 0
     const returnedMetadata: MetaResponse = {
       lastModifiedAt: new Date(item.metadata.lastModifiedAtUnix * 1000).toISOString(),
       createdAt: new Date(item.metadata.createdAtUnix * 1000).toISOString(),
-      expireAt: new Date(item.metadata.willExpireAtUnix * 1000).toISOString(),
+      expireAt: isPermanent ? "never" : new Date(item.metadata.willExpireAtUnix * 1000).toISOString(),
       sizeBytes: item.metadata.sizeBytes,
       location: item.metadata.location,
       filename: item.metadata.filename,
       highlightLanguage: item.metadata.highlightLanguage,
       encryptionScheme: item.metadata.encryptionScheme,
       hasPassword: item.metadata.passwd.length > 0,
+      isPermanent,
     }
     return new Response(isHead ? null : JSON.stringify(returnedMetadata, null, 2), {
       headers: {

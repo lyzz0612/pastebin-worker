@@ -200,7 +200,8 @@ export function DisplayPaste() {
         }
 
         const resp = await uploadNormal(APIUrl, options)
-        showModal("Updated Successfully", `Paste updated. Expires at: ${new Date(resp.expireAt).toLocaleString()}`)
+        const expireMessage = resp.isPermanent ? "Never (permanent)" : new Date(resp.expireAt).toLocaleString()
+        showModal("Updated Successfully", `Paste updated. Expires at: ${expireMessage}`)
 
         // Update displayed content
         const newBuffer = new TextEncoder().encode(editContent)
